@@ -7,7 +7,7 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'office-brews-fallback-secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'office-brews-secure-secret-key';
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://manish:GU9R6kswaW4kSj2l@cluster0.a8hpucr.mongodb.net/?appName=Cluster0";
 
 // Middlewares
@@ -16,8 +16,11 @@ app.use(express.json());
 
 // Database Connection
 mongoose.connect(MONGO_URI)
-  .then(() => console.log('MongoDB Connected'))
-  .catch(err => console.error('MongoDB Connection Error:', err));
+  .then(() => console.log('MongoDB Connected successfully'))
+  .catch(err => {
+    console.error('MongoDB Connection Error:', err);
+    process.exit(1);
+  });
 
 // --- SCHEMAS ---
 const UserSchema = new mongoose.Schema({
@@ -45,13 +48,13 @@ const Order = mongoose.model('Order', OrderSchema);
 // --- AUTH MIDDLEWARE ---
 const authenticate = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+  if (!token) return res.status(401).json({ message: 'No authentication token provided.' });
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Invalid token' });
+    res.status(401).json({ message: 'Session expired or invalid token.' });
   }
 };
 
@@ -60,15 +63,15 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, pin } = req.body;
     const existing = await User.findOne({ email });
-    if (existing) return res.status(400).json({ message: 'Email already exists' });
+    if (existing) return res.status(400).json({ message: 'Email already registered.' });
 
     const newUser = new User({ name, email, pin });
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET);
+    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: newUser._id, name: newUser.name, email: newUser.email } });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Internal server error during registration.' });
   }
 });
 
@@ -76,12 +79,12 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, pin } = req.body;
     const user = await User.findOne({ email, pin });
-    if (!user) return res.status(401).json({ message: 'Invalid credentials' });
+    if (!user) return res.status(401).json({ message: 'Invalid email or PIN.' });
 
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET);
+    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Internal server error during login.' });
   }
 });
 
@@ -89,7 +92,7 @@ app.put('/api/auth/profile', authenticate, async (req, res) => {
   try {
     const { name, email, pin } = req.body;
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) return res.status(404).json({ message: 'User profile not found.' });
 
     user.name = name;
     user.email = email;
@@ -98,7 +101,7 @@ app.put('/api/auth/profile', authenticate, async (req, res) => {
 
     res.json({ user: { id: user._id, name: user.name, email: user.email } });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to update profile.' });
   }
 });
 
@@ -116,7 +119,7 @@ app.post('/api/orders', authenticate, async (req, res) => {
     await order.save();
     res.json(order);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to place order.' });
   }
 });
 
@@ -125,7 +128,7 @@ app.get('/api/orders/my', authenticate, async (req, res) => {
     const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to retrieve your orders.' });
   }
 });
 
@@ -137,9 +140,10 @@ app.put('/api/orders/:id', authenticate, async (req, res) => {
       { items },
       { new: true }
     );
+    if (!order) return res.status(404).json({ message: 'Order not found.' });
     res.json(order);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to update the order.' });
   }
 });
 
@@ -155,16 +159,17 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
 
     orders.forEach(order => {
       order.items.forEach(item => {
-        totalDrinks += item.quantity;
+        const qty = item.quantity || 1;
+        totalDrinks += qty;
         const isWithSugar = item.sugar === 'With Sugar';
-        if (isWithSugar) totalWithSugar += item.quantity;
+        if (isWithSugar) totalWithSugar += qty;
 
         if (order.slot === '11:00 AM') {
-          morningSummary.total += item.quantity;
-          if (isWithSugar) morningSummary.withSugar += item.quantity;
+          morningSummary.total += qty;
+          if (isWithSugar) morningSummary.withSugar += qty;
         } else {
-          afternoonSummary.total += item.quantity;
-          if (isWithSugar) afternoonSummary.withSugar += item.quantity;
+          afternoonSummary.total += qty;
+          if (isWithSugar) afternoonSummary.withSugar += qty;
         }
 
         const key = `${item.drink}|${item.sugar}`;
@@ -172,9 +177,9 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
           tableMap.set(key, { drink: item.drink, sugar: item.sugar, morningCount: 0, afternoonCount: 0, total: 0 });
         }
         const row = tableMap.get(key);
-        if (order.slot === '11:00 AM') row.morningCount += item.quantity;
-        else row.afternoonCount += item.quantity;
-        row.total += item.quantity;
+        if (order.slot === '11:00 AM') row.morningCount += qty;
+        else row.afternoonCount += qty;
+        row.total += qty;
       });
     });
 
@@ -186,30 +191,36 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
       table: Array.from(tableMap.values()).filter(r => r.total > 0)
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Failed to generate office summary.' });
   }
 });
 
 // --- MIDNIGHT RESET CRON ---
+// Automatically clears all orders at midnight to start fresh every day
 cron.schedule('0 0 * * *', async () => {
-  console.log('Midnight Reset: Clearing all orders...');
+  console.log('Midnight Reset: Clearing all orders for the new day...');
   try {
     await Order.deleteMany({});
-    console.log('Successfully cleared all orders for the new day.');
+    console.log('Fresh start: All orders cleared.');
   } catch (err) {
-    console.error('Failed to clear orders:', err);
+    console.error('Midnight Reset Error:', err);
   }
 });
 
-// Serve frontend in production
-const distPath = path.join(__dirname, 'dist');
+// Serve static assets from the Vite build directory
+const distPath = path.resolve(__dirname, 'dist');
 app.use(express.static(distPath));
 
-// Handle React routing, return all requests to React app
+// Fallback for React Router (Single Page Application)
 app.get('*', (req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  // Only serve index.html if it's not an API call
+  if (!req.path.startsWith('/api')) {
+    res.sendFile(path.join(distPath, 'index.html'));
+  } else {
+    res.status(404).json({ message: 'API endpoint not found' });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Office Brews Backend live on port ${PORT}`);
 });
