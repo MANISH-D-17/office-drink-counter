@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DrinkType, SugarPreference, TimeSlot, OrderItem } from '../types';
 import { useAuth } from '../App';
@@ -8,7 +7,7 @@ const DRINKS = [
   { type: DrinkType.COFFEE, icon: '☕', desc: 'Premium roasted beans' },
   { type: DrinkType.TEA, icon: '🍵', desc: 'Soothing organic leaves' },
   { type: DrinkType.MILK, icon: '🥛', desc: 'Fresh dairy or almond' },
-  { type: DrinkType.BLACK_TEA, icon: '🍃', desc: 'Strong classic brew' },
+  { type: DrinkType.BLACK_TEA, icon: '🍃', desc: 'Soothing classic brew' },
   { type: DrinkType.BLACK_COFFEE, icon: '🖤', desc: 'Pure caffeine kick' },
 ];
 
@@ -28,7 +27,8 @@ const OrderPage: React.FC = () => {
 
   const addToCart = (drink: DrinkType) => {
     const id = Math.random().toString(36).substr(2, 5);
-    setCart([...cart, { id, drink, sugar: SugarPreference.WITHOUT_SUGAR, quantity: 1 }]);
+    // Set 'With Sugar' as default as requested
+    setCart([...cart, { id, drink, sugar: SugarPreference.WITH_SUGAR, quantity: 1 }]);
     
     // Feedback
     setFeedback(prev => ({ ...prev, [drink]: true }));

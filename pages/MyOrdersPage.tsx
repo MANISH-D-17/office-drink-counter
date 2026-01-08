@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../App';
@@ -11,6 +10,7 @@ const MyOrdersPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBuffer, setEditBuffer] = useState<OrderItem[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOrders();
@@ -20,19 +20,19 @@ const MyOrdersPage: React.FC = () => {
     if (user) {
       setLoading(true);
       api.getMyOrders(user.id).then(res => {
-        setOrders(res.reverse());
+        setOrders(res);
         setLoading(false);
-      });
+      }).catch(() => setLoading(false));
     }
   };
 
   const totalDrinks = orders.reduce((acc, order) => 
-    acc + order.items.reduce((sum, item) => sum + item.quantity, 0), 0
+    acc + order.items.reduce((sum, item) => sum + (item.quantity || 1), 0), 0
   );
 
   const totalWithSugar = orders.reduce((acc, order) => 
     acc + order.items.reduce((sum, item) => 
-      item.sugar === SugarPreference.WITH_SUGAR ? sum + item.quantity : sum, 0
+      item.sugar === SugarPreference.WITH_SUGAR ? sum + (item.quantity || 1) : sum, 0
     ), 0
   );
 
@@ -61,6 +61,20 @@ const MyOrdersPage: React.FC = () => {
       alert("Failed to update order");
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  const handleDelete = async (orderId: string) => {
+    if (!window.confirm("Are you sure you want to delete this order?")) return;
+    
+    setDeletingId(orderId);
+    try {
+      await api.deleteOrder(orderId);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+    } catch (err) {
+      alert("Failed to delete order");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -106,6 +120,8 @@ const MyOrdersPage: React.FC = () => {
         <div className="space-y-6">
           {orders.map(order => {
             const isEditing = editingId === order.id;
+            const isDeleting = deletingId === order.id;
+            
             return (
               <div key={order.id} className={`bg-white rounded-2xl p-6 shadow-sm border transition-all ${isEditing ? 'border-[#6F4E37] ring-1 ring-[#6F4E37]/10 scale-[1.01]' : 'border-stone-100'}`}>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
@@ -146,12 +162,12 @@ const MyOrdersPage: React.FC = () => {
                           <div className="flex items-center space-x-3">
                             {isEditing ? (
                               <div className="flex items-center space-x-2">
-                                <button onClick={() => updateBufferItem(item.id, { quantity: Math.max(1, item.quantity - 1) })} className="w-6 h-6 rounded bg-white shadow-sm">-</button>
-                                <span className="w-4 text-center text-sm font-bold">{item.quantity}</span>
-                                <button onClick={() => updateBufferItem(item.id, { quantity: item.quantity + 1 })} className="w-6 h-6 rounded bg-white shadow-sm">+</button>
+                                <button onClick={() => updateBufferItem(item.id, { quantity: Math.max(1, (item.quantity || 1) - 1) })} className="w-6 h-6 rounded bg-white shadow-sm">-</button>
+                                <span className="w-4 text-center text-sm font-bold">{item.quantity || 1}</span>
+                                <button onClick={() => updateBufferItem(item.id, { quantity: (item.quantity || 1) + 1 })} className="w-6 h-6 rounded bg-white shadow-sm">+</button>
                               </div>
                             ) : (
-                              <span className="font-bold text-[#6F4E37]">x{item.quantity}</span>
+                              <span className="font-bold text-[#6F4E37]">x{item.quantity || 1}</span>
                             )}
                           </div>
                         </div>
@@ -159,7 +175,7 @@ const MyOrdersPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-6 md:mt-0 md:ml-6 flex flex-col items-end space-y-2 w-full md:w-auto">
+                  <div className="mt-6 md:mt-0 md:ml-6 flex flex-col items-end space-y-3 w-full md:w-auto">
                     {isEditing ? (
                       <div className="flex space-x-2 w-full md:w-auto">
                         <button 
@@ -177,15 +193,31 @@ const MyOrdersPage: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <button 
-                        onClick={() => startEdit(order)}
-                        className="flex items-center space-x-2 px-4 py-2 text-sm font-bold text-[#6F4E37] bg-stone-50 rounded-xl hover:bg-[#6F4E37] hover:text-white transition-colors"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        <span>Edit Order</span>
-                      </button>
+                      <div className="flex space-x-2 w-full md:w-auto">
+                        <button 
+                          onClick={() => startEdit(order)}
+                          className="flex items-center space-x-2 px-4 py-2 text-sm font-bold text-[#6F4E37] bg-stone-50 rounded-xl hover:bg-[#6F4E37] hover:text-white transition-colors"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          <span>Edit</span>
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(order.id)}
+                          disabled={isDeleting}
+                          className="p-2 text-stone-300 hover:text-red-500 transition-colors bg-stone-50 hover:bg-red-50 rounded-xl disabled:opacity-50"
+                          title="Delete Order"
+                        >
+                          {isDeleting ? (
+                            <div className="h-5 w-5 border-2 border-red-500 border-t-transparent animate-spin rounded-full"></div>
+                          ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     )}
                     <p className="text-[10px] text-stone-300">ID: #{order.id}</p>
                   </div>

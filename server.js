@@ -147,6 +147,16 @@ app.put('/api/orders/:id', authenticate, async (req, res) => {
   }
 });
 
+app.delete('/api/orders/:id', authenticate, async (req, res) => {
+  try {
+    const order = await Order.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+    if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
+    res.json({ message: 'Order deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to delete order.' });
+  }
+});
+
 app.get('/api/orders/summary', authenticate, async (req, res) => {
   try {
     const orders = await Order.find();
@@ -196,12 +206,16 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
 });
 
 // --- MIDNIGHT RESET CRON ---
-// Automatically clears all orders at midnight to start fresh every day
+// Automatically clears ALL data at midnight to start fresh every day
 cron.schedule('0 0 * * *', async () => {
-  console.log('Midnight Reset: Clearing all orders for the new day...');
+  console.log('Midnight Reset: Clearing all users and orders for the new day...');
   try {
-    await Order.deleteMany({});
-    console.log('Fresh start: All orders cleared.');
+    // Reset both collections as requested
+    await Promise.all([
+      Order.deleteMany({}),
+      User.deleteMany({})
+    ]);
+    console.log('Fresh start: All data cleared.');
   } catch (err) {
     console.error('Midnight Reset Error:', err);
   }

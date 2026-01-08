@@ -1,4 +1,3 @@
-
 import { Order, OrderItem, User, OfficeSummary, DrinkType, SugarPreference, TimeSlot, AggregatedRow } from './types';
 
 /**
@@ -87,6 +86,14 @@ export const api = {
     });
     if (!res.ok) throw new Error('Failed to update order');
     return res.json();
+  },
+
+  deleteOrder: async (orderId: string): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to delete order');
   },
 
   getMyOrders: async (userId: string): Promise<Order[]> => {
