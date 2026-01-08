@@ -24,7 +24,6 @@ mongoose.connect(MONGO_URI)
 
 // --- SCHEMAS ---
 
-// Helper to transform _id to id in JSON output
 const transformSchema = {
   virtuals: true,
   versionKey: false,
@@ -49,7 +48,8 @@ const OrderSchema = new mongoose.Schema({
     id: String,
     drink: String,
     sugar: String,
-    quantity: Number
+    quantity: Number,
+    note: String
   }],
   slot: { type: String, enum: ['11:00 AM', '03:00 PM'], required: true },
   createdAt: { type: Date, default: Date.now }
@@ -86,7 +86,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: newUser });
   } catch (err) {
-    res.status(500).json({ message: 'Internal server error during registration.' });
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
@@ -94,12 +94,12 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, pin } = req.body;
     const user = await User.findOne({ email, pin });
-    if (!user) return res.status(401).json({ message: 'Invalid email or PIN.' });
+    if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: user });
   } catch (err) {
-    res.status(500).json({ message: 'Internal server error during login.' });
+    res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
@@ -107,16 +107,15 @@ app.put('/api/auth/profile', authenticate, async (req, res) => {
   try {
     const { name, email, pin } = req.body;
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User profile not found.' });
+    if (!user) return res.status(404).json({ message: 'User not found.' });
 
     user.name = name;
     user.email = email;
     if (pin) user.pin = pin;
     await user.save();
-
     res.json({ user });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update profile.' });
+    res.status(500).json({ message: 'Update failed.' });
   }
 });
 
@@ -134,7 +133,7 @@ app.post('/api/orders', authenticate, async (req, res) => {
     await order.save();
     res.json(order);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to place order.' });
+    res.status(500).json({ message: 'Order placement failed.' });
   }
 });
 
@@ -143,7 +142,7 @@ app.get('/api/orders/my', authenticate, async (req, res) => {
     const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
     res.json(orders);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to retrieve your orders.' });
+    res.status(500).json({ message: 'Fetch failed.' });
   }
 });
 
@@ -155,104 +154,106 @@ app.put('/api/orders/:id', authenticate, async (req, res) => {
       { items },
       { new: true }
     );
-    if (!order) return res.status(404).json({ message: 'Order not found.' });
     res.json(order);
   } catch (err) {
-    res.status(500).json({ message: 'Failed to update the order.' });
+    res.status(500).json({ message: 'Update failed.' });
   }
 });
 
 app.delete('/api/orders/:id', authenticate, async (req, res) => {
   try {
-    const orderId = req.params.id;
-    if (!mongoose.Types.ObjectId.isValid(orderId)) {
-        return res.status(400).json({ message: 'Invalid order ID format.' });
-    }
-    const order = await Order.findOneAndDelete({ _id: orderId, userId: req.user.id });
-    if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
-    res.json({ message: 'Order deleted successfully' });
+    await Order.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+    res.json({ message: 'Deleted' });
   } catch (err) {
-    console.error('Delete error:', err);
-    res.status(500).json({ message: 'Failed to delete order.' });
+    res.status(500).json({ message: 'Delete failed.' });
   }
 });
 
 app.get('/api/orders/summary', authenticate, async (req, res) => {
   try {
-    const orders = await Order.find().sort({ createdAt: -1 });
-    
-    let totalDrinks = 0;
-    let totalWithSugar = 0;
-    const morningSummary = { total: 0, withSugar: 0 };
-    const afternoonSummary = { total: 0, withSugar: 0 };
-    const tableMap = new Map();
-
-    orders.forEach(order => {
-      order.items.forEach(item => {
-        const qty = item.quantity || 1;
-        totalDrinks += qty;
-        const isWithSugar = item.sugar === 'With Sugar';
-        if (isWithSugar) totalWithSugar += qty;
-
-        if (order.slot === '11:00 AM') {
-          morningSummary.total += qty;
-          if (isWithSugar) morningSummary.withSugar += qty;
-        } else {
-          afternoonSummary.total += qty;
-          if (isWithSugar) afternoonSummary.withSugar += qty;
+    // MongoDB Aggregation for the Detailed Table
+    const tableData = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: { drink: "$items.drink", sugar: "$items.sugar" },
+          morningCount: {
+            $sum: { $cond: [{ $eq: ["$slot", "11:00 AM"] }, "$items.quantity", 0] }
+          },
+          afternoonCount: {
+            $sum: { $cond: [{ $eq: ["$slot", "03:00 PM"] }, "$items.quantity", 0] }
+          },
+          total: { $sum: "$items.quantity" }
         }
-
-        const key = `${item.drink}|${item.sugar}`;
-        if (!tableMap.has(key)) {
-          tableMap.set(key, { drink: item.drink, sugar: item.sugar, morningCount: 0, afternoonCount: 0, total: 0 });
+      },
+      {
+        $project: {
+          _id: 0,
+          drink: "$_id.drink",
+          sugar: "$_id.sugar",
+          morningCount: 1,
+          afternoonCount: 1,
+          total: 1
         }
-        const row = tableMap.get(key);
-        if (order.slot === '11:00 AM') row.morningCount += qty;
-        else row.afternoonCount += qty;
-        row.total += qty;
-      });
-    });
+      },
+      { $sort: { drink: 1, sugar: 1 } }
+    ]);
+
+    // Aggregate overall stats
+    const statsData = await Order.aggregate([
+      { $unwind: "$items" },
+      {
+        $group: {
+          _id: null,
+          totalDrinks: { $sum: "$items.quantity" },
+          totalWithSugar: {
+            $sum: { $cond: [{ $eq: ["$items.sugar", "With Sugar"] }, "$items.quantity", 0] }
+          },
+          morningTotal: {
+            $sum: { $cond: [{ $eq: ["$slot", "11:00 AM"] }, "$items.quantity", 0] }
+          },
+          morningSugar: {
+            $sum: { $cond: [{ $and: [{ $eq: ["$slot", "11:00 AM"] }, { $eq: ["$items.sugar", "With Sugar"] }] }, "$items.quantity", 0] }
+          },
+          afternoonTotal: {
+            $sum: { $cond: [{ $eq: ["$slot", "03:00 PM"] }, "$items.quantity", 0] }
+          },
+          afternoonSugar: {
+            $sum: { $cond: [{ $and: [{ $eq: ["$slot", "03:00 PM"] }, { $eq: ["$items.sugar", "With Sugar"] }] }, "$items.quantity", 0] }
+          }
+        }
+      }
+    ]);
+
+    const stats = statsData[0] || { totalDrinks: 0, totalWithSugar: 0, morningTotal: 0, morningSugar: 0, afternoonTotal: 0, afternoonSugar: 0 };
+    const allOrders = await Order.find().sort({ createdAt: -1 });
 
     res.json({
-      totalDrinks,
-      totalWithSugar,
-      morningSummary,
-      afternoonSummary,
-      table: Array.from(tableMap.values()).filter(r => r.total > 0),
-      allOrders: orders // Return individual orders so we can see who ordered what
+      totalDrinks: stats.totalDrinks,
+      totalWithSugar: stats.totalWithSugar,
+      morningSummary: { total: stats.morningTotal, withSugar: stats.morningSugar },
+      afternoonSummary: { total: stats.afternoonTotal, withSugar: stats.afternoonSugar },
+      table: tableData,
+      allOrders
     });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to generate office summary.' });
+    res.status(500).json({ message: 'Summary aggregation failed.' });
   }
 });
 
-// --- MIDNIGHT RESET CRON ---
 cron.schedule('0 0 * * *', async () => {
-  console.log('Midnight Reset: Clearing all users and orders for the new day...');
   try {
-    await Promise.all([
-      Order.deleteMany({}),
-      User.deleteMany({})
-    ]);
-    console.log('Fresh start: All data cleared.');
+    await Promise.all([Order.deleteMany({}), User.deleteMany({})]);
   } catch (err) {
-    console.error('Midnight Reset Error:', err);
+    console.error('Reset failed:', err);
   }
 });
 
-// Serve static assets from the Vite build directory
 const distPath = path.resolve(__dirname, 'dist');
 app.use(express.static(distPath));
-
-// Fallback for React Router (Single Page Application)
 app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(distPath, 'index.html'));
-  } else {
-    res.status(404).json({ message: 'API endpoint not found' });
-  }
+  if (!req.path.startsWith('/api')) res.sendFile(path.join(distPath, 'index.html'));
+  else res.status(404).json({ message: 'Not Found' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Office Brews Backend live on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server live on ${PORT}`));
