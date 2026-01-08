@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { OfficeSummary, TimeSlot, SugarPreference } from '../types';
@@ -79,10 +78,10 @@ const SummaryPage: React.FC = () => {
       </div>
 
       {/* Aggregation Table */}
-      <div className="bg-white rounded-3xl shadow-lg border border-stone-100 overflow-hidden">
+      <div className="bg-white rounded-3xl shadow-lg border border-stone-100 overflow-hidden mb-12">
         <div className="p-8 border-b border-stone-50 flex justify-between items-center">
           <h2 className="text-xl font-bold text-stone-800">Detailed Aggregation</h2>
-          <span className="text-xs text-stone-400 italic">Source: MongoDB Aggregation (Simulated)</span>
+          <span className="text-xs text-stone-400 italic">Consolidated View</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
@@ -111,6 +110,48 @@ const SummaryPage: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Individual User Orders */}
+      <div className="bg-white rounded-3xl shadow-lg border border-stone-100 overflow-hidden">
+        <div className="p-8 border-b border-stone-50 flex justify-between items-center">
+          <h2 className="text-xl font-bold text-stone-800">Who's Drinking Today?</h2>
+          <span className="bg-stone-100 text-stone-500 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-widest">
+            {summary.allOrders.length} {summary.allOrders.length === 1 ? 'Order' : 'Orders'}
+          </span>
+        </div>
+        <div className="divide-y divide-stone-50">
+          {summary.allOrders.length === 0 ? (
+            <div className="p-12 text-center text-stone-400">No individual records found.</div>
+          ) : (
+            summary.allOrders.map((order, idx) => (
+              <div key={order.id || idx} className="p-6 md:px-8 hover:bg-stone-50/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <span className="font-bold text-stone-900 text-lg">{order.userName}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-tighter ${order.slot === TimeSlot.MORNING ? 'bg-orange-100 text-orange-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                      {order.slot}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {order.items.map((item, iidx) => (
+                      <div key={iidx} className="bg-stone-100 px-3 py-1.5 rounded-xl text-xs flex items-center space-x-2">
+                        <span className="font-black text-[#6F4E37]">{item.quantity}x</span>
+                        <span className="text-stone-700 font-medium">{item.drink}</span>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded ${item.sugar === SugarPreference.WITH_SUGAR ? 'bg-amber-100 text-amber-600' : 'bg-stone-200 text-stone-500'}`}>
+                          {item.sugar === SugarPreference.WITH_SUGAR ? 'Sugar' : 'No Sugar'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="text-right">
+                   <span className="text-[10px] text-stone-300 font-medium">Placed at {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

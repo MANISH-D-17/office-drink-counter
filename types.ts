@@ -1,4 +1,3 @@
-
 export enum DrinkType {
   TEA = 'Tea',
   COFFEE = 'Coffee',
@@ -54,4 +53,5 @@ export interface OfficeSummary {
   morningSummary: { total: number; withSugar: number };
   afternoonSummary: { total: number; withSugar: number };
   table: AggregatedRow[];
+  allOrders: Order[];
 }

@@ -179,7 +179,7 @@ app.delete('/api/orders/:id', authenticate, async (req, res) => {
 
 app.get('/api/orders/summary', authenticate, async (req, res) => {
   try {
-    const orders = await Order.find();
+    const orders = await Order.find().sort({ createdAt: -1 });
     
     let totalDrinks = 0;
     let totalWithSugar = 0;
@@ -218,7 +218,8 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
       totalWithSugar,
       morningSummary,
       afternoonSummary,
-      table: Array.from(tableMap.values()).filter(r => r.total > 0)
+      table: Array.from(tableMap.values()).filter(r => r.total > 0),
+      allOrders: orders // Return individual orders so we can see who ordered what
     });
   } catch (err) {
     res.status(500).json({ message: 'Failed to generate office summary.' });
