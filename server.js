@@ -23,11 +23,24 @@ mongoose.connect(MONGO_URI)
   });
 
 // --- SCHEMAS ---
+
+// Helper to transform _id to id in JSON output
+const transformSchema = {
+  virtuals: true,
+  versionKey: false,
+  transform: function (doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret._id;
+  }
+};
+
 const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   pin: { type: String, required: true }
 });
+UserSchema.set('toJSON', transformSchema);
+UserSchema.set('toObject', transformSchema);
 
 const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -41,6 +54,8 @@ const OrderSchema = new mongoose.Schema({
   slot: { type: String, enum: ['11:00 AM', '03:00 PM'], required: true },
   createdAt: { type: Date, default: Date.now }
 });
+OrderSchema.set('toJSON', transformSchema);
+OrderSchema.set('toObject', transformSchema);
 
 const User = mongoose.model('User', UserSchema);
 const Order = mongoose.model('Order', OrderSchema);
@@ -68,8 +83,8 @@ app.post('/api/auth/register', async (req, res) => {
     const newUser = new User({ name, email, pin });
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser._id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: newUser._id, name: newUser.name, email: newUser.email } });
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: newUser });
   } catch (err) {
     res.status(500).json({ message: 'Internal server error during registration.' });
   }
@@ -81,8 +96,8 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ email, pin });
     if (!user) return res.status(401).json({ message: 'Invalid email or PIN.' });
 
-    const token = jwt.sign({ id: user._id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email } });
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: user });
   } catch (err) {
     res.status(500).json({ message: 'Internal server error during login.' });
   }
@@ -99,7 +114,7 @@ app.put('/api/auth/profile', authenticate, async (req, res) => {
     if (pin) user.pin = pin;
     await user.save();
 
-    res.json({ user: { id: user._id, name: user.name, email: user.email } });
+    res.json({ user });
   } catch (err) {
     res.status(500).json({ message: 'Failed to update profile.' });
   }
@@ -111,7 +126,7 @@ app.post('/api/orders', authenticate, async (req, res) => {
     const { items, slot } = req.body;
     const user = await User.findById(req.user.id);
     const order = new Order({
-      userId: user._id,
+      userId: user.id,
       userName: user.name,
       items,
       slot
@@ -149,10 +164,15 @@ app.put('/api/orders/:id', authenticate, async (req, res) => {
 
 app.delete('/api/orders/:id', authenticate, async (req, res) => {
   try {
-    const order = await Order.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+    const orderId = req.params.id;
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        return res.status(400).json({ message: 'Invalid order ID format.' });
+    }
+    const order = await Order.findOneAndDelete({ _id: orderId, userId: req.user.id });
     if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
     res.json({ message: 'Order deleted successfully' });
   } catch (err) {
+    console.error('Delete error:', err);
     res.status(500).json({ message: 'Failed to delete order.' });
   }
 });
@@ -206,11 +226,9 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
 });
 
 // --- MIDNIGHT RESET CRON ---
-// Automatically clears ALL data at midnight to start fresh every day
 cron.schedule('0 0 * * *', async () => {
   console.log('Midnight Reset: Clearing all users and orders for the new day...');
   try {
-    // Reset both collections as requested
     await Promise.all([
       Order.deleteMany({}),
       User.deleteMany({})
@@ -227,7 +245,6 @@ app.use(express.static(distPath));
 
 // Fallback for React Router (Single Page Application)
 app.get('*', (req, res) => {
-  // Only serve index.html if it's not an API call
   if (!req.path.startsWith('/api')) {
     res.sendFile(path.join(distPath, 'index.html'));
   } else {
