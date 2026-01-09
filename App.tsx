@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { api } from './api';
 import { User } from './types';
@@ -68,7 +67,7 @@ const App: React.FC = () => {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#6F4E37]"></div>
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#003B73]"></div>
     </div>
   );
 
@@ -91,7 +90,7 @@ const App: React.FC = () => {
         </main>
         
         <footer className="py-6 text-center text-stone-400 text-sm">
-          &copy; 2026 Profitstory.ai. Designed for modern teams.
+          &copy; 2026 ProfitStory.ai . All rights reserved.
         </footer>
       </div>
     </AuthContext.Provider>

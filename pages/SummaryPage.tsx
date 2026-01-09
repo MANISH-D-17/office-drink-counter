@@ -13,123 +13,146 @@ const SummaryPage: React.FC = () => {
     });
   }, []);
 
-  if (loading) return <div className="text-center py-20 text-stone-400">Compiling office report...</div>;
+  if (loading) return (
+    <div className="flex flex-col items-center justify-center py-24">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#003B73] mb-4"></div>
+      <p className="text-stone-400 font-bold uppercase tracking-widest text-xs">Syncing Global Data</p>
+    </div>
+  );
 
   if (!summary || summary.totalDrinks === 0) {
     return (
       <div className="max-w-4xl mx-auto text-center py-20">
         <h1 className="text-3xl font-bold text-stone-900 mb-4">Office Summary</h1>
-        <div className="bg-white rounded-2xl p-16 border border-stone-100 shadow-sm text-stone-400">No active orders found for today.</div>
+        <div className="bg-white rounded-3xl p-20 border border-stone-100 shadow-sm text-stone-300">
+          <div className="text-6xl mb-6">📊</div>
+          <p className="font-bold uppercase tracking-widest text-sm">Waiting for today's first brew log</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+    <div className="max-w-7xl mx-auto px-4">
+      <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-stone-900 mb-2">Office Brew Report</h1>
-          <p className="text-stone-500">Live aggregated statistics and individual records.</p>
-        </div>
-        <div className="flex space-x-4">
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-stone-100">
-            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-widest">Total</span>
-            <span className="text-xl font-bold text-[#6F4E37]">{summary.totalDrinks}</span>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="w-8 h-1 bg-[#003B73] rounded-full"></span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#003B73]">Global Report</span>
           </div>
-          <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-stone-100">
-            <span className="text-[10px] text-stone-400 block uppercase font-bold tracking-widest">Sweet</span>
-            <span className="text-xl font-bold text-amber-600">{summary.totalWithSugar}</span>
+          <h1 className="text-4xl font-bold text-stone-900">CEO Dashboard</h1>
+          <p className="text-stone-400 text-sm mt-1">Live Office Brew Performance Overview <span className="text-green-500 ml-2 font-bold flex items-center inline-flex gap-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Live Data</span></p>
+        </div>
+        
+        <div className="flex gap-4">
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-4 min-w-[200px]">
+            <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#003B73] font-bold">∑</div>
+            <div>
+              <span className="text-[10px] text-stone-400 block font-black uppercase tracking-widest">Total Units</span>
+              <span className="text-2xl font-black text-stone-900">{summary.totalDrinks}</span>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 flex items-center gap-4 min-w-[200px]">
+            <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-[#FBBF24] font-bold">✨</div>
+            <div>
+              <span className="text-[10px] text-stone-400 block font-black uppercase tracking-widest">Sweetened</span>
+              <span className="text-2xl font-black text-stone-900">{summary.totalWithSugar}</span>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
-        {[
-          { title: 'Morning - 11:00 AM', stats: summary.morningSummary, color: 'bg-orange-50 text-orange-700' },
-          { title: 'Afternoon - 03:00 PM', stats: summary.afternoonSummary, color: 'bg-indigo-50 text-indigo-700' }
-        ].map((slot, idx) => (
-          <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100">
-            <h3 className="text-sm font-bold text-stone-400 uppercase tracking-widest mb-4">{slot.title}</h3>
-            <div className="flex justify-between items-center">
-              <div>
-                <span className="block text-3xl font-bold text-stone-900">{slot.stats.total}</span>
-                <span className="text-[10px] text-stone-400 uppercase font-bold">Total</span>
-              </div>
-              <div className="text-right">
-                <span className="block text-3xl font-bold text-stone-900">{slot.stats.withSugar}</span>
-                <span className="text-[10px] text-stone-400 uppercase font-bold">Sugar</span>
-              </div>
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+        <MetricCard title="Morning Total" value={summary.morningSummary.total} subtitle="11:00 AM Slot" color="border-l-[#003B73]" />
+        <MetricCard title="Morning Sugar" value={summary.morningSummary.withSugar} subtitle="Custom Preference" color="border-l-[#FBBF24]" />
+        <MetricCard title="Afternoon Total" value={summary.afternoonSummary.total} subtitle="03:00 PM Slot" color="border-l-[#003B73]" />
+        <MetricCard title="Afternoon Sugar" value={summary.afternoonSummary.withSugar} subtitle="Custom Preference" color="border-l-[#FBBF24]" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
+        {/* Aggregation Table */}
+        <div className="xl:col-span-2 bg-white rounded-3xl shadow-xl border border-stone-100 overflow-hidden">
+          <div className="px-8 py-6 border-b border-stone-50 bg-stone-50/50 flex justify-between items-center">
+            <h2 className="text-lg font-bold text-stone-800">Financial Trends (Drink Breakdown)</h2>
+            <div className="flex gap-2">
+               <span className="px-3 py-1 bg-white border border-stone-200 rounded-lg text-[10px] font-bold text-stone-400">DAILY</span>
             </div>
           </div>
-        ))}
-      </div>
-
-      <div className="bg-white rounded-3xl shadow-lg border border-stone-100 overflow-hidden mb-12">
-        <div className="p-8 border-b border-stone-50">
-          <h2 className="text-xl font-bold text-stone-800">Aggregation Table</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead className="bg-stone-50 text-stone-400 text-[10px] uppercase font-bold">
-              <tr>
-                <th className="px-8 py-4">Drink</th>
-                <th className="px-8 py-4">Sugar</th>
-                <th className="px-8 py-4 text-center">11 AM</th>
-                <th className="px-8 py-4 text-center">3 PM</th>
-                <th className="px-8 py-4 text-right">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-50">
-              {summary.table.map((row, idx) => (
-                <tr key={idx} className="hover:bg-stone-50 transition-colors">
-                  <td className="px-8 py-5 font-bold text-stone-800">{row.drink}</td>
-                  <td className="px-8 py-5"><span className="text-[10px] px-2 py-0.5 rounded-full bg-stone-100">{row.sugar}</span></td>
-                  <td className="px-8 py-5 text-center text-stone-600">{row.morningCount || '-'}</td>
-                  <td className="px-8 py-5 text-center text-stone-600">{row.afternoonCount || '-'}</td>
-                  <td className="px-8 py-5 text-right font-black text-[#6F4E37]">{row.total}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="text-stone-400 text-[10px] uppercase font-black tracking-widest">
+                <tr className="border-b border-stone-50">
+                  <th className="px-8 py-4">Category</th>
+                  <th className="px-8 py-4">Preference</th>
+                  <th className="px-8 py-4 text-center">Early</th>
+                  <th className="px-8 py-4 text-center">Late</th>
+                  <th className="px-8 py-4 text-right">Yield</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-stone-50">
+                {summary.table.map((row, idx) => (
+                  <tr key={idx} className="hover:bg-[#003B73]/5 transition-colors group">
+                    <td className="px-8 py-6 font-bold text-stone-900">{row.drink}</td>
+                    <td className="px-8 py-6">
+                      <span className={`text-[9px] px-2 py-1 rounded-full font-black ${row.sugar === SugarPreference.WITH_SUGAR ? 'bg-amber-100 text-amber-600' : 'bg-stone-100 text-stone-400'}`}>
+                        {row.sugar.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 text-center text-stone-500 font-bold">{row.morningCount || '-'}</td>
+                    <td className="px-8 py-6 text-center text-stone-500 font-bold">{row.afternoonCount || '-'}</td>
+                    <td className="px-8 py-6 text-right font-black text-[#003B73]">{row.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      <div className="bg-white rounded-3xl shadow-lg border border-stone-100 overflow-hidden">
-        <div className="p-8 border-b border-stone-50">
-          <h2 className="text-xl font-bold text-stone-800">Individual Orders</h2>
-        </div>
-        <div className="divide-y divide-stone-50">
-          {summary.allOrders.map((order, idx) => (
-            <div key={order.id || idx} className="p-6 md:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <span className="font-bold text-stone-900 text-lg">{order.userName}</span>
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-widest ${order.slot === TimeSlot.MORNING ? 'bg-orange-100 text-orange-700' : 'bg-indigo-100 text-indigo-700'}`}>{order.slot}</span>
+        {/* Individual Feed */}
+        <div className="bg-white rounded-3xl shadow-xl border border-stone-100 overflow-hidden flex flex-col max-h-[700px]">
+          <div className="px-8 py-6 border-b border-stone-50 bg-[#003B73] text-white">
+            <h2 className="text-lg font-bold">Individual Logins</h2>
+            <p className="text-[10px] text-blue-100 opacity-80 uppercase tracking-widest font-bold">Recent Transactions</p>
+          </div>
+          <div className="overflow-y-auto divide-y divide-stone-50">
+            {summary.allOrders.map((order, idx) => (
+              <div key={order.id || idx} className="p-6 hover:bg-stone-50 transition-colors">
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <p className="font-black text-stone-900 text-sm">{order.userName}</p>
+                    <p className="text-[10px] text-stone-400 font-bold">{order.slot}</p>
+                  </div>
+                  <span className="text-[10px] font-black text-[#003B73] bg-blue-50 px-2 py-0.5 rounded uppercase">ORDERED</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {order.items.map((item, iidx) => (
-                    <div key={iidx} className="bg-stone-50 border border-stone-100 px-3 py-1.5 rounded-xl text-xs space-y-1 min-w-[120px]">
-                      <div className="flex justify-between font-medium">
-                        <span className="text-stone-800">{item.drink}</span>
-                        <span className="text-[#6F4E37] font-bold">x{item.quantity}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[9px] text-stone-400">
-                        <span>{item.sugar}</span>
-                        {item.note && <span className="italic truncate max-w-[80px]">"{item.note}"</span>}
-                      </div>
+                    <div key={iidx} className="bg-stone-100/50 border border-stone-100 px-2 py-1 rounded-lg text-[10px] flex items-center gap-2">
+                      <span className="font-black text-[#003B73]">{item.quantity}x</span>
+                      <span className="text-stone-600 font-bold">{item.drink}</span>
                     </div>
                   ))}
                 </div>
+                {order.items.some(i => i.note) && (
+                   <div className="mt-2 text-[9px] text-stone-400 italic border-l-2 border-amber-400 pl-2">
+                     "{order.items.find(i => i.note)?.note}"
+                   </div>
+                )}
               </div>
-              <div className="text-right text-[10px] text-stone-300">
-                {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+const MetricCard = ({ title, value, subtitle, color }: any) => (
+  <div className={`bg-white p-6 rounded-2xl shadow-sm border border-stone-100 border-l-4 ${color}`}>
+    <span className="text-[10px] text-stone-400 font-black uppercase tracking-widest block mb-1">{title}</span>
+    <div className="text-2xl font-black text-stone-900">{value}</div>
+    <span className="text-[10px] text-stone-300 font-bold uppercase">{subtitle}</span>
+  </div>
+);
 
 export default SummaryPage;

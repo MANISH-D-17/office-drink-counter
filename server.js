@@ -2,7 +2,6 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
-const cron = require('node-cron');
 const path = require('path');
 
 const app = express();
@@ -171,7 +170,6 @@ app.delete('/api/orders/:id', authenticate, async (req, res) => {
 
 app.get('/api/orders/summary', authenticate, async (req, res) => {
   try {
-    // MongoDB Aggregation for the Detailed Table
     const tableData = await Order.aggregate([
       { $unwind: "$items" },
       {
@@ -199,7 +197,6 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
       { $sort: { drink: 1, sugar: 1 } }
     ]);
 
-    // Aggregate overall stats
     const statsData = await Order.aggregate([
       { $unwind: "$items" },
       {
@@ -238,14 +235,6 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Summary aggregation failed.' });
-  }
-});
-
-cron.schedule('0 0 * * *', async () => {
-  try {
-    await Promise.all([Order.deleteMany({}), User.deleteMany({})]);
-  } catch (err) {
-    console.error('Reset failed:', err);
   }
 });
 

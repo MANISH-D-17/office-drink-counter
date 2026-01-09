@@ -8,6 +8,30 @@ interface NavbarProps {
   setView: (view: any) => void;
 }
 
+const Logo = () => (
+  <svg viewBox="0 0 200 200" className="h-10 w-10">
+    <circle cx="100" cy="100" r="95" fill="#003B73" />
+    <path 
+      d="M50 70 H70 L80 130 H140 L150 80 H80" 
+      stroke="white" 
+      strokeWidth="8" 
+      fill="none" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+    />
+    <circle cx="90" cy="150" r="10" fill="white" />
+    <circle cx="130" cy="150" r="10" fill="white" />
+    <path 
+      d="M125 75 L130 85 L140 85 L132 91 L135 101 L125 95 L115 101 L118 91 L110 85 L120 85 Z" 
+      fill="#FBBF24" 
+    />
+    <path 
+      d="M150 55 L155 65 L165 65 L157 71 L160 81 L150 75 L140 81 L143 71 L135 65 L145 65 Z" 
+      fill="#FBBF24" 
+    />
+  </svg>
+);
+
 const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
   const { logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -28,15 +52,11 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
       <div className="container mx-auto px-4 flex justify-between items-center h-16">
         {/* Logo Section */}
         <div 
-          className="flex items-center cursor-pointer space-x-2"
+          className="flex items-center cursor-pointer space-x-3"
           onClick={() => handleNavigate('order')}
         >
-          <div className="w-10 h-10 bg-[#6F4E37] rounded-xl flex items-center justify-center text-white">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <span className="brand-font text-xl font-bold text-[#6F4E37]">Drink Counter</span>
+          <Logo />
+          <span className="brand-font text-xl font-bold text-[#003B73]">Drink Counter</span>
         </div>
 
         {/* Desktop Navigation */}
@@ -45,7 +65,7 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
             <button 
               key={link.view}
               onClick={() => setView(link.view)}
-              className={`font-medium transition-colors ${currentView === link.view ? 'text-[#6F4E37]' : 'text-stone-500 hover:text-stone-800'}`}
+              className={`font-semibold transition-colors border-b-2 px-1 py-1 ${currentView === link.view ? 'text-[#003B73] border-[#003B73]' : 'text-stone-400 border-transparent hover:text-stone-800'}`}
             >
               {link.label}
             </button>
@@ -58,13 +78,13 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
             className="hidden sm:block text-right cursor-pointer group hover:opacity-80 transition-opacity"
             onClick={() => setView('profile')}
           >
-            <p className={`text-sm font-semibold transition-colors ${currentView === 'profile' ? 'text-[#6F4E37]' : 'text-stone-800'}`}>{user.name}</p>
-            <p className="text-xs text-stone-400">Coffee Enthusiast</p>
+            <p className={`text-sm font-bold transition-colors ${currentView === 'profile' ? 'text-[#003B73]' : 'text-stone-800'}`}>{user.name}</p>
+            <p className="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Team Member</p>
           </div>
           
           <button 
             onClick={logout}
-            className="hidden sm:block p-2 text-stone-400 hover:text-red-500 transition-colors"
+            className="hidden sm:block p-2 text-stone-300 hover:text-red-500 transition-colors"
             title="Logout"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -76,7 +96,6 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
           <button 
             className="md:hidden p-2 text-stone-500 hover:bg-stone-50 rounded-lg transition-colors"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            aria-label="Toggle navigation menu"
           >
             {isMenuOpen ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -98,9 +117,9 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
             <button 
               key={link.view}
               onClick={() => handleNavigate(link.view)}
-              className={`block w-full text-left px-4 py-3 rounded-xl font-semibold transition-all ${
+              className={`block w-full text-left px-4 py-3 rounded-xl font-bold transition-all ${
                 currentView === link.view 
-                ? 'bg-[#6F4E37] text-white shadow-md shadow-[#6F4E37]/20' 
+                ? 'bg-[#003B73] text-white shadow-md' 
                 : 'text-stone-600 hover:bg-stone-50'
               }`}
             >
@@ -112,10 +131,10 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
             <button 
               onClick={() => handleNavigate('profile')}
               className={`flex items-center space-x-3 w-full text-left px-4 py-3 rounded-xl transition-all ${
-                currentView === 'profile' ? 'bg-stone-50 text-[#6F4E37]' : 'text-stone-600'
+                currentView === 'profile' ? 'bg-stone-50 text-[#003B73]' : 'text-stone-600'
               }`}
             >
-              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-[#003B73]">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
@@ -124,14 +143,12 @@ const Navbar: React.FC<NavbarProps> = ({ user, currentView, setView }) => {
             </button>
             <button 
               onClick={logout}
-              className="flex items-center space-x-3 w-full text-left px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 mt-2 transition-all"
+              className="flex items-center space-x-3 w-full text-left px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 mt-2 transition-all font-bold"
             >
-              <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </div>
-              <span className="font-bold">Logout</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Logout</span>
             </button>
           </div>
         </div>
