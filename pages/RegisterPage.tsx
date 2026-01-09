@@ -39,7 +39,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.toLowerCase().endsWith('@profitstory.ai')) {
+    // Strict Regex for @profitstory.ai
+    const profitStoryRegex = /^[a-zA-Z0-9._%+-]+@profitstory\.ai$/;
+    if (!profitStoryRegex.test(email.toLowerCase())) {
       return setError('Registration error: Use your @profitstory.ai email');
     }
     if (pin.length !== 4) {
@@ -63,23 +65,23 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto mt-20 px-4">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-stone-100">
-        <div className="text-center mb-10">
-          <div className="flex justify-center mb-6">
+    <div className="max-w-md mx-auto mt-10 md:mt-20 px-4">
+      <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[2.5rem] shadow-2xl border border-stone-100">
+        <div className="text-center mb-8 md:mb-10">
+          <div className="flex justify-center mb-4 md:mb-6">
             <Logo />
           </div>
-          <h1 className="text-3xl font-black text-[#003B73] mb-2 tracking-tight">Create Account</h1>
-          <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.2em]">Join Corporate Brew Network</p>
+          <h1 className="text-2xl md:text-3xl font-black text-[#003B73] mb-1 md:mb-2 tracking-tight">Create Account</h1>
+          <p className="text-stone-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">Join Corporate Brew Network</p>
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-50 text-red-500 text-[10px] font-bold p-4 rounded-2xl border border-red-100 uppercase tracking-widest text-center">
+          <div className="mb-4 md:mb-6 bg-red-50 text-red-500 text-[10px] font-bold p-3 md:p-4 rounded-xl md:rounded-2xl border border-red-100 uppercase tracking-widest text-center">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
            <div>
             <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Full Name</label>
             <input 
@@ -87,7 +89,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
               type="text" 
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium"
+              className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium text-sm"
               placeholder="John Doe"
             />
           </div>
@@ -98,7 +100,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
               type="email" 
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium"
+              className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium text-sm"
               placeholder="name@profitstory.ai"
             />
           </div>
@@ -112,20 +114,20 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
               maxLength={4}
               value={pin}
               onChange={handlePinChange}
-              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all tracking-[0.8em] text-center text-2xl font-black text-[#003B73]"
+              className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all tracking-[0.8em] text-center text-xl md:text-2xl font-black text-[#003B73]"
               placeholder="••••"
             />
-            <p className="mt-2 text-[9px] text-stone-300 font-bold uppercase text-center">Numeric code for instant login</p>
+            <p className="mt-2 text-[8px] md:text-[9px] text-stone-300 font-bold uppercase text-center">Numeric code for instant login</p>
           </div>
           <button 
             disabled={isSubmitting || pin.length !== 4}
-            className="w-full py-5 bg-[#003B73] text-white font-black rounded-2xl hover:bg-[#002B55] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 uppercase tracking-[0.2em] text-xs"
+            className="w-full py-4 md:py-5 bg-[#003B73] text-white font-black rounded-xl md:rounded-2xl hover:bg-[#002B55] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 uppercase tracking-[0.2em] text-[10px] md:text-xs"
           >
             {isSubmitting ? 'Registering...' : 'Sign Up'}
           </button>
         </form>
 
-        <div className="mt-10 text-center text-[10px]">
+        <div className="mt-8 md:mt-10 text-center text-[10px]">
           <span className="text-stone-300 font-black uppercase tracking-widest">Already a member? </span>
           <button 
             onClick={() => setView('login')}
