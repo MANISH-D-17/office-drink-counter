@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import { useAuth } from '../App';
 
 const Logo = () => (
-  <svg viewBox="0 0 200 200" className="h-20 w-20">
+  <svg viewBox="0 0 200 200" className="h-24 w-24">
     <circle cx="100" cy="100" r="95" fill="#003B73" />
     <path 
-      d="M50 70 H70 L80 130 H140 L150 80 H80" 
+      d="M50 75 H75 L85 135 H135 L145 85 H75" 
       stroke="white" 
       strokeWidth="8" 
       fill="none" 
       strokeLinecap="round" 
       strokeLinejoin="round" 
     />
-    <circle cx="90" cy="150" r="10" fill="white" />
-    <circle cx="130" cy="150" r="10" fill="white" />
+    <circle cx="95" cy="155" r="10" fill="white" />
+    <circle cx="125" cy="155" r="10" fill="white" />
     <path 
       d="M125 75 L130 85 L140 85 L132 91 L135 101 L125 95 L115 101 L118 91 L110 85 L120 85 Z" 
       fill="#FBBF24" 
@@ -34,7 +34,11 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.toLowerCase().endsWith('@profitstory.ai')) {
+      return setError('Access restricted: Use your @profitstory.ai email');
+    }
     if (pin.length !== 4) return setError('PIN must be 4 digits');
+    
     setIsSubmitting(true);
     setError('');
     try {
@@ -50,14 +54,14 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
     <div className="max-w-md mx-auto mt-20 px-4">
       <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-stone-100">
         <div className="text-center mb-10">
-          <div className="flex justify-center mb-6 scale-110">
+          <div className="flex justify-center mb-6">
             <Logo />
           </div>
           <h1 className="text-3xl font-black text-[#003B73] mb-2 tracking-tight">System Login</h1>
           <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.2em]">Corporate Brew Portal</p>
         </div>
 
-        {error && <div className="mb-6 bg-red-50 text-red-500 text-[10px] font-bold p-4 rounded-2xl border border-red-100 uppercase tracking-widest">{error}</div>}
+        {error && <div className="mb-6 bg-red-50 text-red-500 text-[10px] font-bold p-4 rounded-2xl border border-red-100 uppercase tracking-widest text-center">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
@@ -68,7 +72,7 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium"
-              placeholder="name@company.com"
+              placeholder="name@profitstory.ai"
             />
           </div>
           <div>
@@ -88,7 +92,7 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
             disabled={isSubmitting || pin.length !== 4}
             className="w-full py-5 bg-[#003B73] text-white font-black rounded-2xl hover:bg-[#002B55] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 uppercase tracking-[0.2em] text-xs"
           >
-            {isSubmitting ? 'Authenticating...' : 'Access Dashboard'}
+            {isSubmitting ? 'Verifying...' : 'Access Dashboard'}
           </button>
         </form>
 
