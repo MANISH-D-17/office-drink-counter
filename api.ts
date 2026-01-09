@@ -1,4 +1,4 @@
-import { Order, OrderItem, User, OfficeSummary, DrinkType, SugarPreference, TimeSlot, AggregatedRow } from './types';
+import { Order, OrderItem, User, OfficeSummary, DrinkType, SugarPreference, TimeSlot, AggregatedRow, BroadcastMessage } from './types';
 
 /**
  * PRODUCTION SETTING:
@@ -105,6 +105,23 @@ export const api = {
   getOfficeSummary: async (): Promise<OfficeSummary> => {
     const res = await fetch(`${API_BASE_URL}/orders/summary`, { headers: getHeaders() });
     if (!res.ok) throw new Error('Failed to fetch summary');
+    return res.json();
+  },
+
+  // --- BROADCASTS ---
+  sendBroadcast: async (message: string, type: string): Promise<BroadcastMessage> => {
+    const res = await fetch(`${API_BASE_URL}/broadcasts`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ message, type })
+    });
+    if (!res.ok) throw new Error('Failed to send broadcast');
+    return res.json();
+  },
+
+  getLatestBroadcast: async (): Promise<BroadcastMessage | null> => {
+    const res = await fetch(`${API_BASE_URL}/broadcasts/latest`, { headers: getHeaders() });
+    if (!res.ok) return null;
     return res.json();
   },
 

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
+import { useAuth } from '../App';
 import { OfficeSummary, SugarPreference } from '../types';
 
 const SummaryPage: React.FC = () => {
+  const { user } = useAuth();
   const [summary, setSummary] = useState<OfficeSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastSent, setBroadcastSent] = useState(false);
 
   useEffect(() => {
     api.getOfficeSummary().then(res => {
@@ -12,6 +16,19 @@ const SummaryPage: React.FC = () => {
       setLoading(false);
     });
   }, []);
+
+  const handleBroadcastArrived = async () => {
+    setIsBroadcasting(true);
+    try {
+      await api.sendBroadcast("☕ Coffee has arrived! Please come and pick up your drinks.", "COFFEE_ARRIVED");
+      setBroadcastSent(true);
+      setTimeout(() => setBroadcastSent(false), 5000);
+    } catch (err) {
+      alert("Broadcast failed.");
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center py-24">
@@ -31,6 +48,8 @@ const SummaryPage: React.FC = () => {
       </div>
     );
   }
+
+  const isAdmin = user?.email === 'manish.d@profitstory.ai';
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">
@@ -67,6 +86,33 @@ const SummaryPage: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Admin Broadcast Card */}
+      {isAdmin && (
+        <div className="mb-8 bg-white p-6 md:p-8 rounded-3xl border-2 border-dashed border-[#003B73]/20 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-blue-900/5">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-[#003B73] rounded-full animate-ping opacity-20"></div>
+              <div className="relative w-14 h-14 bg-[#003B73] rounded-full flex items-center justify-center text-white text-2xl">📢</div>
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-[#003B73]">Admin Controls</h3>
+              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Broadcast delivery alerts to the whole office</p>
+            </div>
+          </div>
+          <button
+            onClick={handleBroadcastArrived}
+            disabled={isBroadcasting}
+            className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg ${
+              broadcastSent 
+              ? 'bg-green-500 text-white' 
+              : 'bg-[#003B73] text-white hover:bg-[#002B55] hover:scale-105 active:scale-95'
+            }`}
+          >
+            {isBroadcasting ? 'Sending...' : broadcastSent ? '✓ Notification Sent' : 'Notify: Coffee has Arrived!'}
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 md:gap-8 items-start">
         {/* Procurement Table Section */}

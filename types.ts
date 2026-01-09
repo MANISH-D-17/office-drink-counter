@@ -55,3 +55,10 @@ export interface OfficeSummary {
   table: AggregatedRow[];
   allOrders: Order[];
 }
+
+export interface BroadcastMessage {
+  id: string;
+  message: string;
+  type: 'ORDER_REMINDER' | 'COFFEE_ARRIVED';
+  createdAt: string;
+}

@@ -56,8 +56,17 @@ const OrderSchema = new mongoose.Schema({
 OrderSchema.set('toJSON', transformSchema);
 OrderSchema.set('toObject', transformSchema);
 
+const BroadcastSchema = new mongoose.Schema({
+  message: { type: String, required: true },
+  type: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now, expires: 3600 } // Auto-delete after 1 hour
+});
+BroadcastSchema.set('toJSON', transformSchema);
+BroadcastSchema.set('toObject', transformSchema);
+
 const User = mongoose.model('User', UserSchema);
 const Order = mongoose.model('Order', OrderSchema);
+const Broadcast = mongoose.model('Broadcast', BroadcastSchema);
 
 // --- AUTH MIDDLEWARE ---
 const authenticate = (req, res, next) => {
@@ -235,6 +244,31 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ message: 'Summary aggregation failed.' });
+  }
+});
+
+// --- BROADCAST ROUTES ---
+app.post('/api/broadcasts', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (user.email !== 'manish.d@profitstory.ai') {
+      return res.status(403).json({ message: 'Only authorized admins can broadcast.' });
+    }
+    const { message, type } = req.body;
+    const broadcast = new Broadcast({ message, type });
+    await broadcast.save();
+    res.json(broadcast);
+  } catch (err) {
+    res.status(500).json({ message: 'Broadcast failed.' });
+  }
+});
+
+app.get('/api/broadcasts/latest', authenticate, async (req, res) => {
+  try {
+    const latest = await Broadcast.findOne().sort({ createdAt: -1 });
+    res.json(latest);
+  } catch (err) {
+    res.status(500).json({ message: 'Fetch failed.' });
   }
 });
 
