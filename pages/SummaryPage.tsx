@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useAuth } from '../App';
-import { OfficeSummary, SugarPreference } from '../types';
+import { OfficeSummary, SugarPreference, Order, OrderItem } from '../types';
+
+const ADMIN_EMAILS = ['manish.d@profitstory.ai', 'mathan.kumar@profitstory.ai'];
 
 const SummaryPage: React.FC = () => {
   const { user } = useAuth();
@@ -9,13 +11,23 @@ const SummaryPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastSent, setBroadcastSent] = useState(false);
+  
+  // Admin Edit State
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [editBuffer, setEditBuffer] = useState<OrderItem[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
+    refreshSummary();
+  }, []);
+
+  const refreshSummary = () => {
+    setLoading(true);
     api.getOfficeSummary().then(res => {
       setSummary(res);
       setLoading(false);
     });
-  }, []);
+  };
 
   const handleBroadcastArrived = async () => {
     setIsBroadcasting(true);
@@ -27,6 +39,70 @@ const SummaryPage: React.FC = () => {
       alert("Broadcast failed.");
     } finally {
       setIsBroadcasting(false);
+    }
+  };
+
+  const handleBroadcastReminder = async () => {
+    setIsBroadcasting(true);
+    try {
+      await api.sendBroadcast("📢 It is time to order! Please place your beverage requests now.", "ORDER_REMINDER");
+      setBroadcastSent(true);
+      setTimeout(() => setBroadcastSent(false), 5000);
+    } catch (err) {
+      alert("Broadcast failed.");
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!window.confirm("CRITICAL: This will remove EVERY order from the board. Continue?")) return;
+    if (!window.confirm("Final check: Are you absolutely sure? This cannot be undone.")) return;
+    
+    try {
+      await api.clearAllOrders();
+      refreshSummary();
+    } catch (err) {
+      alert("Failed to clear board.");
+    }
+  };
+
+  // Inline Editing Functions
+  const startEdit = (order: Order) => {
+    setEditingOrderId(order.id);
+    setEditBuffer(JSON.parse(JSON.stringify(order.items)));
+  };
+
+  const cancelEdit = () => {
+    setEditingOrderId(null);
+    setEditBuffer([]);
+  };
+
+  const updateBufferItem = (id: string, updates: Partial<OrderItem>) => {
+    setEditBuffer(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  };
+
+  const saveEdit = async () => {
+    if (!editingOrderId) return;
+    setIsUpdating(true);
+    try {
+      await api.updateOrder(editingOrderId, editBuffer);
+      setEditingOrderId(null);
+      refreshSummary();
+    } catch (err) {
+      alert("Failed to update order");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm("Delete this specific order?")) return;
+    try {
+      await api.deleteOrder(orderId);
+      refreshSummary();
+    } catch (err) {
+      alert("Failed to delete order");
     }
   };
 
@@ -49,7 +125,7 @@ const SummaryPage: React.FC = () => {
     );
   }
 
-  const isAdmin = user?.email === 'manish.d@profitstory.ai';
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-4">
@@ -87,30 +163,45 @@ const SummaryPage: React.FC = () => {
         </div>
       </header>
 
-      {/* Admin Broadcast Card */}
+      {/* Admin Control Center */}
       {isAdmin && (
-        <div className="mb-8 bg-white p-6 md:p-8 rounded-3xl border-2 border-dashed border-[#003B73]/20 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-blue-900/5">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="absolute inset-0 bg-[#003B73] rounded-full animate-ping opacity-20"></div>
-              <div className="relative w-14 h-14 bg-[#003B73] rounded-full flex items-center justify-center text-white text-2xl">📢</div>
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-[#003B73]">Admin Controls</h3>
-              <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Broadcast delivery alerts to the whole office</p>
+        <div className="mb-8 space-y-4">
+          <div className="bg-white p-6 md:p-8 rounded-3xl border-2 border-dashed border-[#003B73]/20 shadow-xl shadow-blue-900/5">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-[#003B73] rounded-full animate-pulse opacity-10"></div>
+                  <div className="relative w-14 h-14 bg-[#003B73] rounded-full flex items-center justify-center text-white text-2xl shadow-lg">🛠️</div>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-[#003B73]">System Administrator Controls</h3>
+                  <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Global Dashboard & Broadcast Management</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={handleBroadcastReminder}
+                  disabled={isBroadcasting}
+                  className="px-6 py-3 bg-[#FBBF24] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-md hover:bg-amber-500 transition-all active:scale-95"
+                >
+                  📢 Notify: Time to Order!
+                </button>
+                <button
+                  onClick={handleBroadcastArrived}
+                  disabled={isBroadcasting}
+                  className="px-6 py-3 bg-[#003B73] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-md hover:bg-[#002B55] transition-all active:scale-95"
+                >
+                  ☕ Notify: Coffee Arrived!
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  className="px-6 py-3 bg-red-50 text-red-500 border border-red-100 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-sm"
+                >
+                  🗑️ Clear All Orders
+                </button>
+              </div>
             </div>
           </div>
-          <button
-            onClick={handleBroadcastArrived}
-            disabled={isBroadcasting}
-            className={`px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs transition-all shadow-lg ${
-              broadcastSent 
-              ? 'bg-green-500 text-white' 
-              : 'bg-[#003B73] text-white hover:bg-[#002B55] hover:scale-105 active:scale-95'
-            }`}
-          >
-            {isBroadcasting ? 'Sending...' : broadcastSent ? '✓ Notification Sent' : 'Notify: Coffee has Arrived!'}
-          </button>
         </div>
       )}
 
@@ -162,39 +253,99 @@ const SummaryPage: React.FC = () => {
         </div>
 
         {/* Individual Orders Section */}
-        <div className="bg-white rounded-2xl md:rounded-[2rem] shadow-xl border border-stone-100 overflow-hidden flex flex-col max-h-[500px] md:max-h-[700px]">
-          <div className="px-4 py-4 md:px-8 md:py-6 border-b border-stone-100 bg-[#003B73] text-white">
-            <h2 className="text-base md:text-lg font-black tracking-tight">Individual Orders</h2>
-            <p className="text-[9px] md:text-[10px] text-blue-100 opacity-80 uppercase tracking-widest font-black">Recent Logs</p>
+        <div className="bg-white rounded-2xl md:rounded-[2rem] shadow-xl border border-stone-100 overflow-hidden flex flex-col max-h-[600px] md:max-h-[800px]">
+          <div className="px-4 py-4 md:px-8 md:py-6 border-b border-stone-100 bg-[#003B73] text-white flex justify-between items-center">
+            <div>
+              <h2 className="text-base md:text-lg font-black tracking-tight">Individual Orders</h2>
+              <p className="text-[9px] md:text-[10px] text-blue-100 opacity-80 uppercase tracking-widest font-black">Recent Logs</p>
+            </div>
+            {isAdmin && <span className="bg-white/20 px-2 py-1 rounded text-[8px] font-bold uppercase">Admin View</span>}
           </div>
           <div className="overflow-y-auto divide-y divide-stone-50 custom-scrollbar">
-            {summary.allOrders.map((order, idx) => (
-              <div key={order.id || idx} className="p-4 md:p-6 hover:bg-stone-50 transition-colors">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <p className="font-black text-stone-900 text-sm md:text-base leading-tight">{order.userName}</p>
-                    <p className="text-[8px] md:text-[10px] text-stone-400 font-bold tracking-widest uppercase">{order.slot}</p>
-                  </div>
-                  <span className="text-[8px] font-black text-[#003B73] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">LOGGED</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {order.items.map((item, iidx) => (
-                    <div key={iidx} className="bg-stone-50 border border-stone-200 px-2 py-1.5 rounded-lg text-[10px] md:text-xs flex flex-col min-w-[90px] shadow-sm">
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-stone-800 font-black">{item.drink}</span>
-                        <span className="text-[#003B73] font-black bg-blue-50 px-1 rounded">x{item.quantity}</span>
-                      </div>
-                      <span className="text-[8px] text-stone-400 font-bold uppercase leading-none">{item.sugar}</span>
-                      {item.note && (
-                        <div className="mt-1.5 text-[8px] text-stone-500 italic border-l-2 border-[#FBBF24] pl-1 leading-tight">
-                          {item.note}
+            {summary.allOrders.map((order, idx) => {
+              const isEditing = editingOrderId === order.id;
+              return (
+                <div key={order.id || idx} className={`p-4 md:p-6 transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-stone-50'}`}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <p className="font-black text-stone-900 text-sm md:text-base leading-tight">{order.userName}</p>
+                      <p className="text-[8px] md:text-[10px] text-stone-400 font-bold tracking-widest uppercase">{order.slot}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isAdmin && !isEditing && (
+                        <div className="flex gap-1">
+                          <button 
+                            onClick={() => startEdit(order)}
+                            className="p-1.5 text-stone-300 hover:text-[#003B73] transition-colors"
+                            title="Edit Order"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteOrder(order.id)}
+                            className="p-1.5 text-stone-300 hover:text-red-500 transition-colors"
+                            title="Delete Order"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       )}
+                      {isEditing ? (
+                        <div className="flex gap-1">
+                          <button onClick={saveEdit} disabled={isUpdating} className="px-3 py-1 bg-[#003B73] text-white text-[8px] font-black uppercase rounded shadow-sm">Save</button>
+                          <button onClick={cancelEdit} className="px-3 py-1 bg-stone-200 text-stone-600 text-[8px] font-black uppercase rounded">Cancel</button>
+                        </div>
+                      ) : (
+                        <span className="text-[8px] font-black text-[#003B73] bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">LOGGED</span>
+                      )}
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(isEditing ? editBuffer : order.items).map((item, iidx) => (
+                      <div key={iidx} className={`bg-white border ${isEditing ? 'border-[#003B73]/30 shadow-md' : 'border-stone-200'} px-2 py-1.5 rounded-lg text-[10px] md:text-xs flex flex-col min-w-[100px] shadow-sm transition-all`}>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-stone-800 font-black">{item.drink}</span>
+                          <span className="text-[#003B73] font-black bg-blue-50 px-1 rounded">x{item.quantity}</span>
+                        </div>
+                        
+                        {isEditing ? (
+                          <div className="space-y-1.5 mt-1">
+                            <div className="flex gap-1">
+                              {Object.values(SugarPreference).map(s => (
+                                <button 
+                                  key={s} 
+                                  onClick={() => updateBufferItem(item.id, { sugar: s })}
+                                  className={`flex-1 text-[7px] font-black py-0.5 rounded border transition-all ${item.sugar === s ? 'bg-[#FBBF24] text-white border-[#FBBF24]' : 'bg-stone-50 text-stone-400 border-stone-200'}`}
+                                >
+                                  {s === SugarPreference.WITH_SUGAR ? 'SUGAR' : 'NO'}
+                                </button>
+                              ))}
+                            </div>
+                            <input 
+                              type="text" 
+                              value={item.note || ''} 
+                              onChange={e => updateBufferItem(item.id, { note: e.target.value })}
+                              placeholder="Note..."
+                              className="w-full text-[8px] px-1 py-0.5 border border-stone-100 rounded bg-stone-50"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <span className="text-[8px] text-stone-400 font-bold uppercase leading-none">{item.sugar}</span>
+                            {item.note && (
+                              <div className="mt-1.5 text-[8px] text-stone-500 italic border-l-2 border-[#FBBF24] pl-1 leading-tight">
+                                {item.note}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

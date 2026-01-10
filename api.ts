@@ -96,6 +96,14 @@ export const api = {
     if (!res.ok) throw new Error('Failed to delete order');
   },
 
+  clearAllOrders: async (): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/orders/all`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!res.ok) throw new Error('Failed to clear board');
+  },
+
   getMyOrders: async (userId: string): Promise<Order[]> => {
     const res = await fetch(`${API_BASE_URL}/orders/my`, { headers: getHeaders() });
     if (!res.ok) return [];

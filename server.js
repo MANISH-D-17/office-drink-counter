@@ -9,6 +9,8 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'office-brews-secure-secret-key';
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://manish:GU9R6kswaW4kSj2l@cluster0.a8hpucr.mongodb.net/?appName=Cluster0";
 
+const ADMIN_EMAILS = ['manish.d@profitstory.ai', 'mathan.kumar@profitstory.ai'];
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -80,6 +82,8 @@ const authenticate = (req, res, next) => {
     res.status(401).json({ message: 'Session expired or invalid token.' });
   }
 };
+
+const isAdmin = (email) => ADMIN_EMAILS.includes(email.toLowerCase());
 
 // --- AUTH ROUTES ---
 app.post('/api/auth/register', async (req, res) => {
@@ -154,14 +158,28 @@ app.get('/api/orders/my', authenticate, async (req, res) => {
   }
 });
 
+// Clear all orders (Admin only)
+app.delete('/api/orders/all', authenticate, async (req, res) => {
+  try {
+    if (!isAdmin(req.user.email)) {
+      return res.status(403).json({ message: 'Only admins can clear the board.' });
+    }
+    await Order.deleteMany({});
+    res.json({ message: 'Board cleared successfully.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to clear board.' });
+  }
+});
+
 app.put('/api/orders/:id', authenticate, async (req, res) => {
   try {
     const { items } = req.body;
-    const order = await Order.findOneAndUpdate(
-      { _id: req.params.id, userId: req.user.id },
-      { items },
-      { new: true }
-    );
+    const filter = isAdmin(req.user.email) 
+      ? { _id: req.params.id } 
+      : { _id: req.params.id, userId: req.user.id };
+
+    const order = await Order.findOneAndUpdate(filter, { items }, { new: true });
+    if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
     res.json(order);
   } catch (err) {
     res.status(500).json({ message: 'Update failed.' });
@@ -170,7 +188,12 @@ app.put('/api/orders/:id', authenticate, async (req, res) => {
 
 app.delete('/api/orders/:id', authenticate, async (req, res) => {
   try {
-    await Order.findOneAndDelete({ _id: req.params.id, userId: req.user.id });
+    const filter = isAdmin(req.user.email) 
+      ? { _id: req.params.id } 
+      : { _id: req.params.id, userId: req.user.id };
+
+    const order = await Order.findOneAndDelete(filter);
+    if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
     res.json({ message: 'Deleted' });
   } catch (err) {
     res.status(500).json({ message: 'Delete failed.' });
@@ -250,8 +273,7 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
 // --- BROADCAST ROUTES ---
 app.post('/api/broadcasts', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
-    if (user.email !== 'manish.d@profitstory.ai') {
+    if (!isAdmin(req.user.email)) {
       return res.status(403).json({ message: 'Only authorized admins can broadcast.' });
     }
     const { message, type } = req.body;
