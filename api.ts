@@ -4,11 +4,13 @@ const API_BASE_URL = '/api';
 
 const handleResponse = async (res: Response) => {
   if (res.status === 401) {
+    // Session is genuinely dead, wipe everything and go home
     localStorage.removeItem('brewhub_token');
     localStorage.removeItem('brewhub_current_user');
-    window.location.reload(); // Force re-login if token is dead
+    window.location.reload(); 
     throw new Error('Session expired. Please log in again.');
   }
+  
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'API request failed');
   return data;
@@ -28,7 +30,7 @@ export const api = {
     const res = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, pin })
+      body: JSON.stringify({ name, email: email.toLowerCase(), pin })
     });
     const data = await handleResponse(res);
     localStorage.setItem('brewhub_token', data.token);
@@ -40,7 +42,7 @@ export const api = {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, pin })
+      body: JSON.stringify({ email: email.toLowerCase(), pin })
     });
     const data = await handleResponse(res);
     localStorage.setItem('brewhub_token', data.token);
@@ -52,7 +54,7 @@ export const api = {
     const res = await fetch(`${API_BASE_URL}/auth/profile`, {
       method: 'PUT',
       headers: getHeaders(),
-      body: JSON.stringify(updates)
+      body: JSON.stringify({ ...updates, email: updates.email.toLowerCase() })
     });
     const data = await handleResponse(res);
     localStorage.setItem('brewhub_current_user', JSON.stringify(data.user));

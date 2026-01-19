@@ -46,7 +46,7 @@ const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: String,
   items: [{
-    _id: false, // Prevent conflict with frontend IDs
+    _id: false, 
     id: String,
     drink: String,
     sugar: String,
@@ -98,13 +98,14 @@ app.post('/api/auth/register', async (req, res) => {
     const { name, email, pin } = req.body;
     if (!name || !email || !pin) return res.status(400).json({ message: 'Missing fields.' });
     
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const emailLower = email.toLowerCase();
+    const existing = await User.findOne({ email: emailLower });
     if (existing) return res.status(400).json({ message: 'Email already registered.' });
 
-    const newUser = new User({ name, email: email.toLowerCase(), pin });
+    const newUser = new User({ name, email: emailLower, pin });
     await newUser.save();
 
-    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ token, user: newUser });
   } catch (err) {
     console.error('Registration Error:', err);
@@ -118,7 +119,7 @@ app.post('/api/auth/login', async (req, res) => {
     const user = await User.findOne({ email: email.toLowerCase(), pin });
     if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '30d' });
     res.json({ token, user: user });
   } catch (err) {
     console.error('Login Error:', err);
@@ -148,6 +149,16 @@ app.post('/api/orders', authenticate, async (req, res) => {
   } catch (err) {
     console.error('Order Placement Error:', err);
     res.status(500).json({ message: 'Failed to place order. Check network connection.' });
+  }
+});
+
+app.get('/api/orders/my', authenticate, async (req, res) => {
+  try {
+    const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) {
+    console.error('Fetch My Orders Error:', err);
+    res.status(500).json({ message: 'Failed to fetch history.' });
   }
 });
 
@@ -194,19 +205,21 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
         $group: {
           _id: null,
           totalDrinks: { $sum: "$items.quantity" },
-          totalWithSugar: { $sum: { $cond: [{ $eq: ["$items.sugar", "With Sugar"] }, "$items.quantity", 0] } }
+          totalWithSugar: { $sum: { $cond: [{ $eq: ["$items.sugar", "With Sugar"] }, "$items.quantity", 0] } },
+          morningTotal: { $sum: { $cond: [{ $eq: ["$slot", "11:00 AM"] }, "$items.quantity", 0] } },
+          afternoonTotal: { $sum: { $cond: [{ $eq: ["$slot", "03:00 PM"] }, "$items.quantity", 0] } }
         }
       }
     ]);
 
-    const stats = statsData[0] || { totalDrinks: 0, totalWithSugar: 0 };
+    const stats = statsData[0] || { totalDrinks: 0, totalWithSugar: 0, morningTotal: 0, afternoonTotal: 0 };
     const allOrders = await Order.find().sort({ createdAt: -1 });
 
     res.json({
       totalDrinks: stats.totalDrinks,
       totalWithSugar: stats.totalWithSugar,
-      morningSummary: { total: 0, withSugar: 0 },
-      afternoonSummary: { total: 0, withSugar: 0 },
+      morningSummary: { total: stats.morningTotal, withSugar: 0 },
+      afternoonSummary: { total: stats.afternoonTotal, withSugar: 0 },
       table: tableData,
       allOrders
     });
