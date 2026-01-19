@@ -1,13 +1,18 @@
 import { Order, OrderItem, User, OfficeSummary, DrinkType, SugarPreference, TimeSlot, AggregatedRow, BroadcastMessage } from './types';
 
-/**
- * PRODUCTION SETTING:
- * Set to false to use the MongoDB backend in server.js
- */
-const USE_MOCK_API = false;
-
-// The backend serves the frontend from the same origin in production
 const API_BASE_URL = '/api';
+
+const handleResponse = async (res: Response) => {
+  if (res.status === 401) {
+    localStorage.removeItem('brewhub_token');
+    localStorage.removeItem('brewhub_current_user');
+    window.location.reload(); // Force re-login if token is dead
+    throw new Error('Session expired. Please log in again.');
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || 'API request failed');
+  return data;
+};
 
 const getHeaders = () => {
   const token = localStorage.getItem('brewhub_token');
@@ -25,8 +30,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, pin })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Registration failed');
+    const data = await handleResponse(res);
     localStorage.setItem('brewhub_token', data.token);
     localStorage.setItem('brewhub_current_user', JSON.stringify(data.user));
     return data.user;
@@ -38,8 +42,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, pin })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Invalid credentials');
+    const data = await handleResponse(res);
     localStorage.setItem('brewhub_token', data.token);
     localStorage.setItem('brewhub_current_user', JSON.stringify(data.user));
     return data.user;
@@ -51,8 +54,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(updates)
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'Update failed');
+    const data = await handleResponse(res);
     localStorage.setItem('brewhub_current_user', JSON.stringify(data.user));
     return data.user;
   },
@@ -74,8 +76,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify({ items, slot })
     });
-    if (!res.ok) throw new Error('Failed to place order');
-    return res.json();
+    return handleResponse(res);
   },
 
   updateOrder: async (orderId: string, updatedItems: OrderItem[]): Promise<Order> => {
@@ -84,8 +85,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify({ items: updatedItems })
     });
-    if (!res.ok) throw new Error('Failed to update order');
-    return res.json();
+    return handleResponse(res);
   },
 
   deleteOrder: async (orderId: string): Promise<void> => {
@@ -93,7 +93,7 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders()
     });
-    if (!res.ok) throw new Error('Failed to delete order');
+    await handleResponse(res);
   },
 
   clearAllOrders: async (): Promise<void> => {
@@ -101,19 +101,17 @@ export const api = {
       method: 'DELETE',
       headers: getHeaders()
     });
-    if (!res.ok) throw new Error('Failed to clear board');
+    await handleResponse(res);
   },
 
   getMyOrders: async (userId: string): Promise<Order[]> => {
     const res = await fetch(`${API_BASE_URL}/orders/my`, { headers: getHeaders() });
-    if (!res.ok) return [];
-    return res.json();
+    return handleResponse(res);
   },
 
   getOfficeSummary: async (): Promise<OfficeSummary> => {
     const res = await fetch(`${API_BASE_URL}/orders/summary`, { headers: getHeaders() });
-    if (!res.ok) throw new Error('Failed to fetch summary');
-    return res.json();
+    return handleResponse(res);
   },
 
   // --- BROADCASTS ---
@@ -123,15 +121,12 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify({ message, type })
     });
-    if (!res.ok) throw new Error('Failed to send broadcast');
-    return res.json();
+    return handleResponse(res);
   },
 
   getLatestBroadcast: async (): Promise<BroadcastMessage | null> => {
     const res = await fetch(`${API_BASE_URL}/broadcasts/latest`, { headers: getHeaders() });
-    if (!res.ok) return null;
-    return res.json();
-  },
-
-  checkAndResetDailyOrders: () => false
+    if (res.status === 401) return null;
+    return handleResponse(res);
+  }
 };

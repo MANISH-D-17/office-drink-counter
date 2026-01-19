@@ -26,7 +26,7 @@ const OrderPage: React.FC = () => {
   };
 
   const addToCart = (drink: DrinkType) => {
-    const id = Math.random().toString(36).substr(2, 5);
+    const id = Math.random().toString(36).substr(2, 9);
     setCart([...cart, { id, drink, sugar: SugarPreference.WITH_SUGAR, quantity: 1, note: '' }]);
     
     setFeedback(prev => ({ ...prev, [drink]: true }));
@@ -44,21 +44,25 @@ const OrderPage: React.FC = () => {
   };
 
   const handlePlaceOrder = async () => {
-    if (selectedSlots.length === 0) return alert("Please select at least one time slot!");
+    if (selectedSlots.length === 0) return alert("Please select a delivery window (Morning or Afternoon)!");
     if (cart.length === 0) return alert("Your cart is empty!");
-    if (!user) return;
+    if (!user) return alert("User session lost. Please log in again.");
 
     setIsSubmitting(true);
     try {
-      await Promise.all(
-        selectedSlots.map(slot => api.placeOrder(user.id, user.name, cart, slot))
-      );
+      // Execute sequentially for higher reliability on mobile networks
+      for (const slot of selectedSlots) {
+        await api.placeOrder(user.id, user.name, cart, slot);
+      }
+      
       setCart([]);
       setSelectedSlots([]);
       setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 3000);
-    } catch (err) {
-      alert("Failed to place order.");
+      setTimeout(() => setShowSuccess(false), 5000);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      console.error('Submission Error:', err);
+      alert(err.message || "Failed to place order. Please check your internet connection.");
     } finally {
       setIsSubmitting(false);
     }
@@ -120,9 +124,9 @@ const OrderPage: React.FC = () => {
       <div className="w-full lg:w-96">
         <div className="bg-white rounded-3xl shadow-xl border border-stone-100 sticky top-24 p-8">
           <h2 className="text-xl font-bold text-stone-800 mb-6">Cart Summary</h2>
-          {showSuccess && <div className="mb-6 bg-green-50 text-green-700 p-4 rounded-xl text-xs font-bold border border-green-100">Order successfully logged!</div>}
+          {showSuccess && <div className="mb-6 bg-green-50 text-green-700 p-4 rounded-xl text-xs font-bold border border-green-100 animate-bounce">Order successfully logged!</div>}
 
-          <div className="space-y-4 max-h-[50vh] overflow-y-auto mb-6 pr-2">
+          <div className="space-y-4 max-h-[50vh] overflow-y-auto mb-6 pr-2 custom-scrollbar">
             {cart.length === 0 ? (
               <div className="text-center py-10">
                 <div className="text-stone-100 text-6xl mb-4">🛒</div>
@@ -174,7 +178,7 @@ const OrderPage: React.FC = () => {
               : 'bg-[#003B73] text-white hover:bg-[#002B55] hover:shadow-[#003B73]/20'
             }`}
           >
-            {isSubmitting ? 'Processing...' : 'Place Order'}
+            {isSubmitting ? 'Syncing with Server...' : 'Place Order'}
           </button>
         </div>
       </div>

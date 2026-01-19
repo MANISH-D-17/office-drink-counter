@@ -19,7 +19,7 @@ app.use(express.json());
 mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB Connected successfully'))
   .catch(err => {
-    console.error('MongoDB Connection Error:', err);
+    console.error('CRITICAL: MongoDB Connection Error:', err);
     process.exit(1);
   });
 
@@ -46,6 +46,7 @@ const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   userName: String,
   items: [{
+    _id: false, // Prevent conflict with frontend IDs
     id: String,
     drink: String,
     sugar: String,
@@ -61,7 +62,7 @@ OrderSchema.set('toObject', transformSchema);
 const BroadcastSchema = new mongoose.Schema({
   message: { type: String, required: true },
   type: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now, expires: 3600 } // Auto-delete after 1 hour
+  createdAt: { type: Date, default: Date.now, expires: 3600 } 
 });
 BroadcastSchema.set('toJSON', transformSchema);
 BroadcastSchema.set('toObject', transformSchema);
@@ -72,32 +73,41 @@ const Broadcast = mongoose.model('Broadcast', BroadcastSchema);
 
 // --- AUTH MIDDLEWARE ---
 const authenticate = (req, res, next) => {
-  const token = req.headers.authorization?.split(' ')[1];
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: 'No authorization header.' });
+  
+  const token = authHeader.split(' ')[1];
   if (!token) return res.status(401).json({ message: 'No authentication token provided.' });
+  
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;
     next();
   } catch (err) {
-    res.status(401).json({ message: 'Session expired or invalid token.' });
+    console.error('JWT Verification Error:', err.message);
+    res.status(401).json({ message: 'Session expired. Please log in again.' });
   }
 };
 
-const isAdmin = (email) => ADMIN_EMAILS.includes(email.toLowerCase());
+const isAdmin = (email) => ADMIN_EMAILS.includes((email || '').toLowerCase());
 
-// --- AUTH ROUTES ---
+// --- ROUTES ---
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, pin } = req.body;
-    const existing = await User.findOne({ email });
+    if (!name || !email || !pin) return res.status(400).json({ message: 'Missing fields.' });
+    
+    const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) return res.status(400).json({ message: 'Email already registered.' });
 
-    const newUser = new User({ name, email, pin });
+    const newUser = new User({ name, email: email.toLowerCase(), pin });
     await newUser.save();
 
     const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: newUser });
   } catch (err) {
+    console.error('Registration Error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
@@ -105,98 +115,51 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, pin } = req.body;
-    const user = await User.findOne({ email, pin });
+    const user = await User.findOne({ email: email.toLowerCase(), pin });
     if (!user) return res.status(401).json({ message: 'Invalid credentials.' });
 
     const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: user });
   } catch (err) {
+    console.error('Login Error:', err);
     res.status(500).json({ message: 'Internal server error.' });
   }
 });
 
-app.put('/api/auth/profile', authenticate, async (req, res) => {
-  try {
-    const { name, email, pin } = req.body;
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found.' });
-
-    user.name = name;
-    user.email = email;
-    if (pin) user.pin = pin;
-    await user.save();
-    res.json({ user });
-  } catch (err) {
-    res.status(500).json({ message: 'Update failed.' });
-  }
-});
-
-// --- ORDER ROUTES ---
 app.post('/api/orders', authenticate, async (req, res) => {
   try {
     const { items, slot } = req.body;
+    if (!items || items.length === 0 || !slot) {
+      return res.status(400).json({ message: 'Invalid order data.' });
+    }
+
     const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found.' });
+
     const order = new Order({
-      userId: user.id,
+      userId: user._id,
       userName: user.name,
       items,
       slot
     });
     await order.save();
+    console.log(`Order placed by ${user.email} for ${slot}`);
     res.json(order);
   } catch (err) {
-    res.status(500).json({ message: 'Order placement failed.' });
+    console.error('Order Placement Error:', err);
+    res.status(500).json({ message: 'Failed to place order. Check network connection.' });
   }
 });
 
-app.get('/api/orders/my', authenticate, async (req, res) => {
-  try {
-    const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    res.json(orders);
-  } catch (err) {
-    res.status(500).json({ message: 'Fetch failed.' });
-  }
-});
-
-// Clear all orders (Admin only)
 app.delete('/api/orders/all', authenticate, async (req, res) => {
   try {
     if (!isAdmin(req.user.email)) {
-      return res.status(403).json({ message: 'Only admins can clear the board.' });
+      return res.status(403).json({ message: 'Access denied: Admin only.' });
     }
-    await Order.deleteMany({});
-    res.json({ message: 'Board cleared successfully.' });
+    const result = await Order.deleteMany({});
+    res.json({ message: `Success: ${result.deletedCount} orders cleared.` });
   } catch (err) {
-    res.status(500).json({ message: 'Failed to clear board.' });
-  }
-});
-
-app.put('/api/orders/:id', authenticate, async (req, res) => {
-  try {
-    const { items } = req.body;
-    const filter = isAdmin(req.user.email) 
-      ? { _id: req.params.id } 
-      : { _id: req.params.id, userId: req.user.id };
-
-    const order = await Order.findOneAndUpdate(filter, { items }, { new: true });
-    if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
-    res.json(order);
-  } catch (err) {
-    res.status(500).json({ message: 'Update failed.' });
-  }
-});
-
-app.delete('/api/orders/:id', authenticate, async (req, res) => {
-  try {
-    const filter = isAdmin(req.user.email) 
-      ? { _id: req.params.id } 
-      : { _id: req.params.id, userId: req.user.id };
-
-    const order = await Order.findOneAndDelete(filter);
-    if (!order) return res.status(404).json({ message: 'Order not found or unauthorized.' });
-    res.json({ message: 'Deleted' });
-  } catch (err) {
-    res.status(500).json({ message: 'Delete failed.' });
+    res.status(500).json({ message: 'Global delete failed.' });
   }
 });
 
@@ -207,12 +170,8 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
       {
         $group: {
           _id: { drink: "$items.drink", sugar: "$items.sugar" },
-          morningCount: {
-            $sum: { $cond: [{ $eq: ["$slot", "11:00 AM"] }, "$items.quantity", 0] }
-          },
-          afternoonCount: {
-            $sum: { $cond: [{ $eq: ["$slot", "03:00 PM"] }, "$items.quantity", 0] }
-          },
+          morningCount: { $sum: { $cond: [{ $eq: ["$slot", "11:00 AM"] }, "$items.quantity", 0] } },
+          afternoonCount: { $sum: { $cond: [{ $eq: ["$slot", "03:00 PM"] }, "$items.quantity", 0] } },
           total: { $sum: "$items.quantity" }
         }
       },
@@ -235,49 +194,55 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
         $group: {
           _id: null,
           totalDrinks: { $sum: "$items.quantity" },
-          totalWithSugar: {
-            $sum: { $cond: [{ $eq: ["$items.sugar", "With Sugar"] }, "$items.quantity", 0] }
-          },
-          morningTotal: {
-            $sum: { $cond: [{ $eq: ["$slot", "11:00 AM"] }, "$items.quantity", 0] }
-          },
-          morningSugar: {
-            $sum: { $cond: [{ $and: [{ $eq: ["$slot", "11:00 AM"] }, { $eq: ["$items.sugar", "With Sugar"] }] }, "$items.quantity", 0] }
-          },
-          afternoonTotal: {
-            $sum: { $cond: [{ $eq: ["$slot", "03:00 PM"] }, "$items.quantity", 0] }
-          },
-          afternoonSugar: {
-            $sum: { $cond: [{ $and: [{ $eq: ["$slot", "03:00 PM"] }, { $eq: ["$items.sugar", "With Sugar"] }] }, "$items.quantity", 0] }
-          }
+          totalWithSugar: { $sum: { $cond: [{ $eq: ["$items.sugar", "With Sugar"] }, "$items.quantity", 0] } }
         }
       }
     ]);
 
-    const stats = statsData[0] || { totalDrinks: 0, totalWithSugar: 0, morningTotal: 0, morningSugar: 0, afternoonTotal: 0, afternoonSugar: 0 };
+    const stats = statsData[0] || { totalDrinks: 0, totalWithSugar: 0 };
     const allOrders = await Order.find().sort({ createdAt: -1 });
 
     res.json({
       totalDrinks: stats.totalDrinks,
       totalWithSugar: stats.totalWithSugar,
-      morningSummary: { total: stats.morningTotal, withSugar: stats.morningSugar },
-      afternoonSummary: { total: stats.afternoonTotal, withSugar: stats.afternoonSugar },
+      morningSummary: { total: 0, withSugar: 0 },
+      afternoonSummary: { total: 0, withSugar: 0 },
       table: tableData,
       allOrders
     });
   } catch (err) {
-    res.status(500).json({ message: 'Summary aggregation failed.' });
+    console.error('Summary Error:', err);
+    res.status(500).json({ message: 'Aggregation failed.' });
   }
 });
 
-// --- BROADCAST ROUTES ---
+app.put('/api/orders/:id', authenticate, async (req, res) => {
+  try {
+    const { items } = req.body;
+    const filter = isAdmin(req.user.email) ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
+    const order = await Order.findOneAndUpdate(filter, { items }, { new: true });
+    if (!order) return res.status(404).json({ message: 'Order not found or access denied.' });
+    res.json(order);
+  } catch (err) {
+    res.status(500).json({ message: 'Update failed.' });
+  }
+});
+
+app.delete('/api/orders/:id', authenticate, async (req, res) => {
+  try {
+    const filter = isAdmin(req.user.email) ? { _id: req.params.id } : { _id: req.params.id, userId: req.user.id };
+    const order = await Order.findOneAndDelete(filter);
+    if (!order) return res.status(404).json({ message: 'Access denied.' });
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    res.status(500).json({ message: 'Delete failed.' });
+  }
+});
+
 app.post('/api/broadcasts', authenticate, async (req, res) => {
   try {
-    if (!isAdmin(req.user.email)) {
-      return res.status(403).json({ message: 'Only authorized admins can broadcast.' });
-    }
-    const { message, type } = req.body;
-    const broadcast = new Broadcast({ message, type });
+    if (!isAdmin(req.user.email)) return res.status(403).json({ message: 'Admin only.' });
+    const broadcast = new Broadcast(req.body);
     await broadcast.save();
     res.json(broadcast);
   } catch (err) {
