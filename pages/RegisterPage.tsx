@@ -39,10 +39,9 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Strict Regex for @profitstory.ai
-    const profitStoryRegex = /^[a-zA-Z0-9._%+-]+@profitstory\.ai$/;
-    if (!profitStoryRegex.test(email.toLowerCase())) {
-      return setError('Registration error: Use your @profitstory.ai email');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.toLowerCase())) {
+      return setError('Please enter a valid email address');
     }
     if (pin.length !== 4) {
       setError('PIN must be 4 digits');
@@ -71,8 +70,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
           <div className="flex justify-center mb-4 md:mb-6">
             <Logo />
           </div>
-          <h1 className="text-2xl md:text-3xl font-black text-[#003B73] mb-1 md:mb-2 tracking-tight">Create Account</h1>
-          <p className="text-stone-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">Join Corporate Brew Network</p>
+          <h1 className="text-2xl md:text-3xl font-black text-[#003B73] mb-1 md:mb-2 tracking-tight">Join BrewHub</h1>
+          <p className="text-stone-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">Universal Office Access</p>
         </div>
 
         {error && (
@@ -94,14 +93,14 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
             />
           </div>
           <div>
-            <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Work Email</label>
+            <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Email Address</label>
             <input 
               required
               type="email" 
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium text-sm"
-              placeholder="name@profitstory.ai"
+              placeholder="user@example.com"
             />
           </div>
           <div>
@@ -117,7 +116,6 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
               className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all tracking-[0.8em] text-center text-xl md:text-2xl font-black text-[#003B73]"
               placeholder="••••"
             />
-            <p className="mt-2 text-[8px] md:text-[9px] text-stone-300 font-bold uppercase text-center">Numeric code for instant login</p>
           </div>
           <button 
             disabled={isSubmitting || pin.length !== 4}
@@ -128,13 +126,8 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ setView }) => {
         </form>
 
         <div className="mt-8 md:mt-10 text-center text-[10px]">
-          <span className="text-stone-300 font-black uppercase tracking-widest">Already a member? </span>
-          <button 
-            onClick={() => setView('login')}
-            className="text-[#003B73] font-black hover:underline uppercase tracking-widest"
-          >
-            Login Access
-          </button>
+          <span className="text-stone-300 font-black uppercase tracking-widest">Already registered? </span>
+          <button onClick={() => setView('login')} className="text-[#003B73] font-black hover:underline uppercase tracking-widest">Login Here</button>
         </div>
       </div>
     </div>

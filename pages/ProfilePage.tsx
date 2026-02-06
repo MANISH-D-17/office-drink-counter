@@ -47,15 +47,15 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-md mx-auto mt-10 px-4">
-      <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-stone-100">
+      <div className="bg-white p-6 md:p-10 rounded-3xl md:rounded-[2.5rem] shadow-2xl border border-stone-100">
         <div className="text-center mb-10">
           <div className="w-20 h-20 bg-[#003B73] rounded-[1.5rem] mx-auto flex items-center justify-center text-white mb-6 shadow-xl shadow-blue-900/10">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <h1 className="text-3xl font-black text-[#003B73] mb-2 tracking-tight">Edit Profile</h1>
-          <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.2em]">Manage Corporate Identity</p>
+          <h1 className="text-2xl md:text-3xl font-black text-[#003B73] mb-2 tracking-tight">Edit Profile</h1>
+          <p className="text-stone-400 text-[10px] font-black uppercase tracking-[0.2em]">Manage Identity Settings</p>
         </div>
 
         {error && (
@@ -81,19 +81,19 @@ const ProfilePage: React.FC = () => {
               type="text" 
               value={name}
               onChange={e => setName(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium"
+              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium text-sm"
               placeholder="John Doe"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Verified Email</label>
+            <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Email Address</label>
             <input 
               required
               type="email" 
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium"
-              placeholder="name@company.com"
+              className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium text-sm"
+              placeholder="user@example.com"
             />
           </div>
           <div>
@@ -109,13 +109,13 @@ const ProfilePage: React.FC = () => {
               className="w-full px-5 py-4 rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all tracking-[0.8em] text-center text-2xl font-black text-[#003B73]"
               placeholder="••••"
             />
-            <p className="mt-2 text-[9px] text-stone-300 font-bold uppercase text-center">Required for security confirmation</p>
+            <p className="mt-2 text-[9px] text-stone-300 font-bold uppercase text-center">Required to confirm changes</p>
           </div>
           <button 
             disabled={isSubmitting || pin.length !== 4}
             className="w-full py-5 bg-[#003B73] text-white font-black rounded-2xl hover:bg-[#002B55] transition-all shadow-xl active:scale-[0.98] disabled:opacity-50 uppercase tracking-[0.2em] text-xs"
           >
-            {isSubmitting ? 'Syncing...' : 'Save Profile Changes'}
+            {isSubmitting ? 'Processing...' : 'Save Profile Settings'}
           </button>
         </form>
       </div>

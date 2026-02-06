@@ -4,7 +4,6 @@ const API_BASE_URL = '/api';
 
 const handleResponse = async (res: Response) => {
   if (res.status === 401) {
-    // Session is genuinely dead, wipe everything and go home
     localStorage.removeItem('brewhub_token');
     localStorage.removeItem('brewhub_current_user');
     window.location.reload(); 
@@ -124,6 +123,15 @@ export const api = {
       body: JSON.stringify({ message, type })
     });
     return handleResponse(res);
+  },
+
+  sendEmailBlast: async (subject: string, message: string): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/admin/email-blast`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ subject, message })
+    });
+    await handleResponse(res);
   },
 
   getLatestBroadcast: async (): Promise<BroadcastMessage | null> => {

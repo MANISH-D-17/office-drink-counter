@@ -26,30 +26,36 @@ const SummaryPage: React.FC = () => {
     api.getOfficeSummary().then(res => {
       setSummary(res);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   };
 
   const handleBroadcastArrived = async () => {
+    if (!window.confirm("Send 'Coffee Arrived' notification AND email blast to all users?")) return;
     setIsBroadcasting(true);
     try {
-      await api.sendBroadcast("☕ Coffee has arrived! Please come and pick up your drinks.", "COFFEE_ARRIVED");
+      const msg = "☕ Coffee has arrived! Please come and pick up your drinks.";
+      await api.sendBroadcast(msg, "COFFEE_ARRIVED");
+      await api.sendEmailBlast("☕ Your Drink is Ready!", msg);
       setBroadcastSent(true);
       setTimeout(() => setBroadcastSent(false), 5000);
-    } catch (err) {
-      alert("Broadcast failed.");
+    } catch (err: any) {
+      alert("Notification failed: " + err.message);
     } finally {
       setIsBroadcasting(false);
     }
   };
 
   const handleBroadcastReminder = async () => {
+    if (!window.confirm("Send 'Time to Order' notification AND email blast to all users?")) return;
     setIsBroadcasting(true);
     try {
-      await api.sendBroadcast("📢 It is time to order! Please place your beverage requests now.", "ORDER_REMINDER");
+      const msg = "📢 It is time to order! Please place your beverage requests now on the Drink Counter app.";
+      await api.sendBroadcast(msg, "ORDER_REMINDER");
+      await api.sendEmailBlast("🕒 Time to Order your Coffee/Tea!", msg);
       setBroadcastSent(true);
       setTimeout(() => setBroadcastSent(false), 5000);
-    } catch (err) {
-      alert("Broadcast failed.");
+    } catch (err: any) {
+      alert("Notification failed: " + err.message);
     } finally {
       setIsBroadcasting(false);
     }
@@ -175,32 +181,35 @@ const SummaryPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-[#003B73]">System Administrator Controls</h3>
-                  <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Global Dashboard & Broadcast Management</p>
+                  <p className="text-stone-400 text-xs font-bold uppercase tracking-widest">Global Dashboard & Email Notifications</p>
                 </div>
               </div>
               <div className="flex flex-wrap justify-center gap-3">
                 <button
                   onClick={handleBroadcastReminder}
                   disabled={isBroadcasting}
-                  className="px-6 py-3 bg-[#FBBF24] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-md hover:bg-amber-500 transition-all active:scale-95"
+                  className="px-6 py-3 bg-[#FBBF24] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-md hover:bg-amber-500 transition-all active:scale-95 flex items-center gap-2"
                 >
-                  📢 Notify: Time to Order!
+                  {isBroadcasting ? <span className="w-2 h-2 rounded-full bg-white animate-ping"></span> : '📢'}
+                  Notify & Email: Time to Order!
                 </button>
                 <button
                   onClick={handleBroadcastArrived}
                   disabled={isBroadcasting}
-                  className="px-6 py-3 bg-[#003B73] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-md hover:bg-[#002B55] transition-all active:scale-95"
+                  className="px-6 py-3 bg-[#003B73] text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-md hover:bg-[#002B55] transition-all active:scale-95 flex items-center gap-2"
                 >
-                  ☕ Notify: Coffee Arrived!
+                  {isBroadcasting ? <span className="w-2 h-2 rounded-full bg-white animate-ping"></span> : '☕'}
+                  Notify & Email: Coffee Arrived!
                 </button>
                 <button
                   onClick={handleClearAll}
                   className="px-6 py-3 bg-red-50 text-red-500 border border-red-100 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-red-500 hover:text-white transition-all active:scale-95 shadow-sm"
                 >
-                  🗑️ Clear All Orders
+                  🗑️ Clear Board
                 </button>
               </div>
             </div>
+            {broadcastSent && <div className="mt-4 text-center text-green-500 font-bold text-[10px] uppercase tracking-widest animate-fade-in">✅ Success: Notifications and Email Blast Sent to All Users!</div>}
           </div>
         </div>
       )}
@@ -246,9 +255,6 @@ const SummaryPage: React.FC = () => {
                 ))}
               </tbody>
             </table>
-          </div>
-          <div className="bg-[#003B73] p-3 text-center">
-            <p className="text-white text-[8px] md:text-[10px] font-black uppercase tracking-[0.1em] md:tracking-[0.2em]">Consolidated View for procurement efficiency.</p>
           </div>
         </div>
 

@@ -34,10 +34,9 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Strict Regex for @profitstory.ai
-    const profitStoryRegex = /^[a-zA-Z0-9._%+-]+@profitstory\.ai$/;
-    if (!profitStoryRegex.test(email.toLowerCase())) {
-      return setError('Access restricted: Use your @profitstory.ai email');
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.toLowerCase())) {
+      return setError('Please enter a valid email address');
     }
     if (pin.length !== 4) return setError('PIN must be 4 digits');
     
@@ -60,21 +59,21 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
             <Logo />
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-[#003B73] mb-1 md:mb-2 tracking-tight">System Login</h1>
-          <p className="text-stone-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">Corporate Brew Portal</p>
+          <p className="text-stone-400 text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em]">Office BrewHub Portal</p>
         </div>
 
         {error && <div className="mb-4 md:mb-6 bg-red-50 text-red-500 text-[10px] font-bold p-3 md:p-4 rounded-xl md:rounded-2xl border border-red-100 uppercase tracking-widest text-center">{error}</div>}
 
         <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
           <div>
-            <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Corporate Email</label>
+            <label className="block text-[10px] font-black text-stone-400 uppercase tracking-widest mb-2">Email Address</label>
             <input 
               required
               type="email" 
               value={email}
               onChange={e => setEmail(e.target.value)}
               className="w-full px-4 py-3 md:px-5 md:py-4 rounded-xl md:rounded-2xl border border-stone-100 bg-stone-50 focus:bg-white focus:ring-2 focus:ring-[#003B73] focus:border-transparent outline-none transition-all font-medium text-sm"
-              placeholder="name@profitstory.ai"
+              placeholder="user@example.com"
             />
           </div>
           <div>
@@ -99,8 +98,8 @@ const LoginPage: React.FC<{ setView: (view: any) => void }> = ({ setView }) => {
         </form>
 
         <div className="mt-8 md:mt-10 text-center text-[10px]">
-          <span className="text-stone-300 font-black uppercase tracking-widest">New team member? </span>
-          <button onClick={() => setView('register')} className="text-[#003B73] font-black hover:underline uppercase tracking-widest">Register Account</button>
+          <span className="text-stone-300 font-black uppercase tracking-widest">New member? </span>
+          <button onClick={() => setView('register')} className="text-[#003B73] font-black hover:underline uppercase tracking-widest">Create Account</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,5 @@
-
 {
-  "name": "Drink Counter",
-  "description": "A professional office drink ordering and summary application with real-time order tracking and aggregated summaries.",
+  "name": "BrewHub",
+  "description": "Professional office beverage tracking and procurement system with universal email support and admin notifications.",
   "requestFramePermissions": []
 }
