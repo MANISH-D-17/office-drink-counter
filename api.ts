@@ -10,9 +10,17 @@ const handleResponse = async (res: Response) => {
     throw new Error('Session expired. Please log in again.');
   }
   
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || 'API request failed');
-  return data;
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.indexOf("application/json") !== -1) {
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'API request failed');
+    return data;
+  } else {
+    // Non-JSON response (likely an HTML 404/500 from the server)
+    const text = await res.text();
+    console.error('Server returned non-JSON response:', text);
+    throw new Error(`Server Error: Expected JSON but received ${res.status} ${res.statusText}. Please contact Admin.`);
+  }
 };
 
 const getHeaders = () => {
@@ -81,6 +89,7 @@ export const api = {
   },
 
   updateOrder: async (orderId: string, updatedItems: OrderItem[]): Promise<Order> => {
+    if (!orderId) throw new Error("Order ID is required for update");
     const res = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
       method: 'PUT',
       headers: getHeaders(),
@@ -90,6 +99,7 @@ export const api = {
   },
 
   deleteOrder: async (orderId: string): Promise<void> => {
+    if (!orderId) throw new Error("Order ID is required for deletion");
     const res = await fetch(`${API_BASE_URL}/orders/${orderId}`, {
       method: 'DELETE',
       headers: getHeaders()

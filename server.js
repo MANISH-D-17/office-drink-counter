@@ -17,9 +17,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || 'manish.d@profitstory.ai,matha
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    // Priority: Environment Variable, then the requested admin email
     user: process.env.EMAIL_USER || 'manish.d@profitstory.ai',
-    // In production, you MUST set EMAIL_PASS as an App Password in your deployment env
     pass: process.env.EMAIL_PASS || 'your-secure-app-password'
   }
 });
@@ -39,7 +37,11 @@ mongoose.connect(MONGO_URI)
 const transformSchema = {
   virtuals: true,
   versionKey: false,
-  transform: (doc, ret) => { ret.id = ret._id.toString(); delete ret._id; }
+  transform: (doc, ret) => { 
+    ret.id = ret._id.toString(); 
+    delete ret._id; 
+    return ret;
+  }
 };
 
 const UserSchema = new mongoose.Schema({
@@ -83,7 +85,9 @@ const authenticate = (req, res, next) => {
 
 const isAdmin = (email) => ADMIN_EMAILS.includes((email || '').toLowerCase());
 
-// API Endpoints
+// --- API ENDPOINTS ---
+
+// Register
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, email, pin } = req.body;
@@ -99,6 +103,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
+// Login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, pin } = req.body;
@@ -111,9 +116,36 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Update Profile (Fixing missing route)
+app.put('/api/auth/profile', authenticate, async (req, res) => {
+  try {
+    const { name, email, pin } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Check if new email is taken
+    if (email.toLowerCase() !== user.email) {
+      const existing = await User.findOne({ email: email.toLowerCase() });
+      if (existing) return res.status(400).json({ message: 'New email already in use' });
+    }
+
+    user.name = name;
+    user.email = email.toLowerCase();
+    if (pin) user.pin = pin;
+    
+    await user.save();
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json({ message: 'Profile update failed' });
+  }
+});
+
+// Place Order
 app.post('/api/orders', authenticate, async (req, res) => {
   try {
-    const order = new Order({ ...req.body, userId: req.user.id, userName: (await User.findById(req.user.id)).name });
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const order = new Order({ ...req.body, userId: user._id, userName: user.name });
     await order.save();
     res.json(order);
   } catch (err) {
@@ -121,10 +153,56 @@ app.post('/api/orders', authenticate, async (req, res) => {
   }
 });
 
+// Get My Orders
 app.get('/api/orders/my', authenticate, async (req, res) => {
-  res.json(await Order.find({ userId: req.user.id }).sort({ createdAt: -1 }));
+  try {
+    const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    res.json(orders);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch history' });
+  }
 });
 
+// Update specific order
+app.put('/api/orders/:id', authenticate, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    
+    // Permission check: Owner or Admin
+    if (order.userId.toString() !== req.user.id && !isAdmin(req.user.email)) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    order.items = req.body.items;
+    await order.save();
+    res.json(order);
+  } catch (err) {
+    console.error('Update order error:', err);
+    res.status(500).json({ message: 'Update failed' });
+  }
+});
+
+// Delete specific order
+app.delete('/api/orders/:id', authenticate, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    
+    // Permission check: Owner or Admin
+    if (order.userId.toString() !== req.user.id && !isAdmin(req.user.email)) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    await order.deleteOne();
+    res.json({ message: 'Order deleted' });
+  } catch (err) {
+    console.error('Delete order error:', err);
+    res.status(500).json({ message: 'Delete failed' });
+  }
+});
+
+// Clear All Board
 app.delete('/api/orders/all', authenticate, async (req, res) => {
   try {
     if (!isAdmin(req.user.email)) return res.status(403).json({ message: 'Unauthorized' });
@@ -135,6 +213,7 @@ app.delete('/api/orders/all', authenticate, async (req, res) => {
   }
 });
 
+// Office Summary (Aggregation)
 app.get('/api/orders/summary', authenticate, async (req, res) => {
   try {
     const tableData = await Order.aggregate([
@@ -153,12 +232,14 @@ app.get('/api/orders/summary', authenticate, async (req, res) => {
       { $group: { _id: null, totalDrinks: { $sum: "$items.quantity" }, totalWithSugar: { $sum: { $cond: [{ $eq: ["$items.sugar", "With Sugar"] }, "$items.quantity", 0] } } }}
     ]);
     const stats = statsData[0] || { totalDrinks: 0, totalWithSugar: 0 };
-    res.json({ ...stats, table: tableData, allOrders: await Order.find().sort({ createdAt: -1 }) });
+    const allOrders = await Order.find().sort({ createdAt: -1 });
+    res.json({ ...stats, table: tableData, allOrders });
   } catch (err) {
     res.status(500).json({ message: 'Stats error' });
   }
 });
 
+// Email Blast
 app.post('/api/admin/email-blast', authenticate, async (req, res) => {
   try {
     if (!isAdmin(req.user.email)) return res.status(403).json({ message: 'Unauthorized' });
@@ -167,7 +248,7 @@ app.post('/api/admin/email-blast', authenticate, async (req, res) => {
     const recipients = users.map(u => u.email).join(', ');
     
     const mailOptions = {
-      from: '"BrewHub Admin" <manish.d@profitstory.ai>',
+      from: `"BrewHub Admin" <${process.env.EMAIL_USER || 'manish.d@profitstory.ai'}>`,
       to: recipients,
       subject: subject || 'BrewHub Office Update',
       html: `
@@ -181,13 +262,15 @@ app.post('/api/admin/email-blast', authenticate, async (req, res) => {
         </div>`
     };
     
-    transporter.sendMail(mailOptions);
-    res.json({ message: 'Email blast sent from manish.d@profitstory.ai' });
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Email blast sent' });
   } catch (err) {
+    console.error('Email blast error:', err);
     res.status(500).json({ message: 'Blast failed' });
   }
 });
 
+// Broadcast Message
 app.post('/api/broadcasts', authenticate, async (req, res) => {
   try {
     if (!isAdmin(req.user.email)) return res.status(403).json({ message: 'Unauthorized' });
@@ -199,15 +282,29 @@ app.post('/api/broadcasts', authenticate, async (req, res) => {
   }
 });
 
+// Get Latest Broadcast
 app.get('/api/broadcasts/latest', authenticate, async (req, res) => {
-  res.json(await Broadcast.findOne().sort({ createdAt: -1 }));
+  try {
+    const latest = await Broadcast.findOne().sort({ createdAt: -1 });
+    res.json(latest);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch broadcast' });
+  }
 });
 
-// SPA Handling
+// --- SPA & ERROR HANDLING ---
+
+// Final API catch-all to prevent returning HTML for missing API routes
+app.all('/api/*', (req, res) => {
+  res.status(404).json({ message: `API Route ${req.method} ${req.url} not found` });
+});
+
+// Static assets
 const distPath = path.resolve(__dirname, 'dist');
 app.use(express.static(distPath));
+
+// SPA Fallback (only for GET requests to non-API paths)
 app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) return res.status(404).json({ message: 'Not Found' });
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
