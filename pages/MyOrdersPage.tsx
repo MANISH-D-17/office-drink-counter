@@ -50,8 +50,8 @@ const MyOrdersPage: React.FC = () => {
       await api.updateOrder(editingId, editBuffer);
       setEditingId(null);
       fetchOrders();
-    } catch (err) {
-      alert("Failed to update");
+    } catch (err: any) {
+      alert("Failed to update: " + (err.message || "Unknown error"));
     } finally {
       setIsUpdating(false);
     }
@@ -63,6 +63,8 @@ const MyOrdersPage: React.FC = () => {
     try {
       await api.deleteOrder(orderId);
       setOrders(prev => prev.filter(o => o.id !== orderId));
+    } catch (err: any) {
+      alert("Delete failed: " + (err.message || "Access denied"));
     } finally {
       setDeletingId(null);
     }
@@ -146,8 +148,8 @@ const MyOrdersPage: React.FC = () => {
                   <div className="mt-4 md:mt-0 md:ml-6 flex md:flex-col items-center md:items-end gap-2 w-full md:w-auto">
                     {isEditing ? (
                       <>
-                        <button onClick={saveEdit} disabled={isUpdating} className="flex-1 md:flex-none px-6 py-2 bg-[#003B73] text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md">Update</button>
-                        <button onClick={cancelEdit} className="flex-1 md:flex-none px-6 py-2 bg-stone-100 text-stone-400 text-[10px] font-black uppercase tracking-widest rounded-xl">Cancel</button>
+                        <button onClick={saveEdit} disabled={isUpdating} className="flex-1 md:flex-none px-6 py-2 bg-[#003B73] text-white text-[10px] font-black uppercase tracking-widest rounded-xl shadow-md hover:opacity-90 active:scale-95">Update</button>
+                        <button onClick={cancelEdit} className="flex-1 md:flex-none px-6 py-2 bg-stone-100 text-stone-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-stone-200">Cancel</button>
                       </>
                     ) : (
                       <>
