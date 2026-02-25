@@ -163,6 +163,17 @@ app.get('/api/orders/my', authenticate, async (req, res) => {
   }
 });
 
+// Clear All Board
+app.delete('/api/orders/all', authenticate, async (req, res) => {
+  try {
+    if (!isAdmin(req.user.email)) return res.status(403).json({ message: 'Unauthorized' });
+    await Order.deleteMany({});
+    res.json({ message: 'Board cleared' });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to clear' });
+  }
+});
+
 // Update specific order
 app.put('/api/orders/:id', authenticate, async (req, res) => {
   try {
@@ -202,16 +213,7 @@ app.delete('/api/orders/:id', authenticate, async (req, res) => {
   }
 });
 
-// Clear All Board
-app.delete('/api/orders/all', authenticate, async (req, res) => {
-  try {
-    if (!isAdmin(req.user.email)) return res.status(403).json({ message: 'Unauthorized' });
-    await Order.deleteMany({});
-    res.json({ message: 'Board cleared' });
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to clear' });
-  }
-});
+
 
 // Office Summary (Aggregation)
 app.get('/api/orders/summary', authenticate, async (req, res) => {
